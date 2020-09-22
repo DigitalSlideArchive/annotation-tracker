@@ -6,5 +6,4 @@ class GirderPlugin(plugin.GirderPlugin):
     CLIENT_SOURCE_PATH = 'web_client'
 
     def load(self, info):
-        # add plugin loading logic here
-        pass
+        plugin.getPlugin('histomicsui').load(info)

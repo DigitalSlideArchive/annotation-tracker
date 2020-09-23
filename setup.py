@@ -35,7 +35,7 @@ setup(
     description='A Girder plugin for Tulane HistomicsTK',
     install_requires=[
         'histomicsui',
-    ]
+    ],
     license='Apache Software License 2.0',
     long_description=readme,
     long_description_content_type='text/x-rst',

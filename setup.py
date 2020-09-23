@@ -46,6 +46,7 @@ setup(
     url='https://github.com/arclamp/annotation-tracker',
     use_scm_version={'local_scheme': prerelease_local_scheme},
     zip_safe=False,
+    python_requires='>=3.6',
     entry_points={
         'girder.plugin': [
             'annotation_tracker = annotation_tracker:GirderPlugin'

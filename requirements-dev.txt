@@ -1,4 +1,3 @@
 pip>=9
 tox
 virtualenv
-histomicsui>=1

@@ -1,2 +1,2 @@
-# girder-tulane
-A Girder plugin for Tulane HistomicsTK
+# annotation-tracker
+A Girder plugin for annotation activity tracking in HistomicsTK

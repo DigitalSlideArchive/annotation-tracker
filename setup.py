@@ -25,15 +25,15 @@ setup(
     long_description=readme,
     long_description_content_type='text/x-rst',
     include_package_data=True,
-    keywords='girder-plugin, girder_tulane',
-    name='girder_tulane',
+    keywords='girder-plugin, annotation_tracker',
+    name='annotation_tracker',
     packages=find_packages(exclude=['test', 'test.*']),
-    url='https://github.com/arclamp/girder-tulane',
+    url='https://github.com/arclamp/annotation-tracker',
     version='0.1.0',
     zip_safe=False,
     entry_points={
         'girder.plugin': [
-            'girder_tulane = girder_tulane:GirderPlugin'
+            'annotation_tracker = annotation_tracker:GirderPlugin'
         ]
     }
 )

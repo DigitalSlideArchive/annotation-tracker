@@ -3,6 +3,6 @@ import pytest
 from girder.plugin import loadedPlugins
 
 
-@pytest.mark.plugin('girder_tulane')
+@pytest.mark.plugin('annotation_tracker')
 def test_import(server):
-    assert 'girder_tulane' in loadedPlugins()
+    assert 'annotation_tracker' in loadedPlugins()

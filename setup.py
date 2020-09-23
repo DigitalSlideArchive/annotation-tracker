@@ -3,6 +3,22 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
+def prerelease_local_scheme(version):
+    """
+    Return local scheme version unless building on master in CircleCI.
+
+    This function returns the local scheme version number
+    (e.g. 0.0.0.dev<N>+g<HASH>) unless building on CircleCI for a
+    pre-release in which case it ignores the hash and produces a
+    PEP440 compliant pre-release version number (e.g. 0.0.0.dev<N>).
+    """
+    from setuptools_scm.version import get_local_node_and_date
+
+    if os.getenv('CIRCLE_BRANCH') in ('master', ):
+        return ''
+    else:
+        return get_local_node_and_date(version)
+
 
 setup(
     author='Kitware Inc.',
@@ -28,7 +44,7 @@ setup(
     name='annotation_tracker',
     packages=find_packages(exclude=['test', 'test.*']),
     url='https://github.com/arclamp/annotation-tracker',
-    version='0.1.0',
+    use_scm_version={'local_scheme': prerelease_local_scheme},
     zip_safe=False,
     entry_points={
         'girder.plugin': [

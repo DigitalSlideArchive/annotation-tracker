@@ -3,9 +3,6 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = [
-    'histomicsui'
-]
 
 setup(
     author='Kitware Inc.',
@@ -20,7 +17,9 @@ setup(
         'Programming Language :: Python :: 3.8'
     ],
     description='A Girder plugin for Tulane HistomicsTK',
-    install_requires=requirements,
+    install_requires=[
+        'histomicsui',
+    ]
     license='Apache Software License 2.0',
     long_description=readme,
     long_description_content_type='text/x-rst',

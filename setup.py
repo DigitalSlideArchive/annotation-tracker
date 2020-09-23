@@ -22,7 +22,7 @@ def prerelease_local_scheme(version):
 
 setup(
     author='Kitware Inc.',
-    author_email='roni.choudhury@kitware.com',
+    author_email='kitware@kitware.com',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: Apache Software License',

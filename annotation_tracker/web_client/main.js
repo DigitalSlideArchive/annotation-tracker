@@ -1,1 +1,1 @@
-console.log('Loaded Girder Tulane!');
+console.log('Loaded Annotation Tracker!');

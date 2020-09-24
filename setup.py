@@ -33,7 +33,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8'
     ],
-    description='A Girder plugin for Tulane HistomicsTK',
+    description='A Girder plugin for annotation tracking in HistomicsUI',
     install_requires=[
         'histomicsui',
     ],

@@ -36,6 +36,9 @@ setup(
     description='A Girder plugin for annotation tracking in HistomicsUI',
     install_requires=[
         'histomicsui',
+        'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff]',
+        'celery<5',
+        'urllib3<1.26,>=1.25.4',
     ],
     license='Apache Software License 2.0',
     long_description=readme,

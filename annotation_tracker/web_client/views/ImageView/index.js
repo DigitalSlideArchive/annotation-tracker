@@ -2,16 +2,25 @@ import ImageView from '@girder/histomicsui/views/body/ImageView';
 import { wrap } from '@girder/core/utilities/PluginUtils';
 import _ from 'underscore';
 
-wrap(ImageView, 'initialize', function (initialize) {
-  initialize.apply(this, _.rest(arguments));
+import Experiments from '../../panels/Experiments';
 
-  console.log('custom initialize logic');
+wrap(ImageView, 'initialize', function (initialize) {
+  this.experiments = new Experiments({
+    parentView: this,
+  });
+
+  initialize.apply(this, _.rest(arguments));
 });
 
 wrap(ImageView, 'render', function (render) {
   render.call(this);
 
-  console.log('custom render logic');
+  this.$('#h-annotation-selector-container')
+    .append('<div class="h-experiment-widget s-panel"></div>');
+
+  this.experiments
+    .setElement('.h-experiment-widget')
+    .render();
 });
 
 export default ImageView;

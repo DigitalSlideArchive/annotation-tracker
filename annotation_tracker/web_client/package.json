@@ -10,7 +10,10 @@
     },
     "girderPlugin": {
         "name": "annotation_tracker",
-        "main": "./main.js"
+        "main": "./main.js",
+        "dependencies": [
+            "histomicsui"
+        ]
     },
     "scripts": {
         "lint": "eslint . && pug-lint . && stylint"

@@ -12,7 +12,8 @@
         "name": "annotation_tracker",
         "main": "./main.js",
         "dependencies": [
-            "histomicsui"
+            "histomicsui",
+            "slicer_cli_web"
         ]
     },
     "scripts": {

@@ -15,7 +15,8 @@ wrap(ImageView, 'initialize', function (initialize) {
 wrap(ImageView, 'render', function (render) {
   render.call(this);
 
-  this.$('#h-annotation-selector-container')
+  this.$('.h-control-panel-container')
+    .removeClass('hidden')
     .append('<div class="h-experiment-widget s-panel"></div>');
 
   this.experiments

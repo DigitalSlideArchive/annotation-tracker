@@ -12,6 +12,7 @@ const Experiments = Panel.extend({
     console.log('Experiments.initialize()');
 
     this.running = false;
+    this.experiment = 0;
     this.task = 0;
   },
 
@@ -19,6 +20,7 @@ const Experiments = Panel.extend({
     this.$el.html(experiments({
       id: 'experiments-panel',
       running: this.running,
+      experiment: this.experiment,
       task: this.task,
     }));
 
@@ -32,6 +34,11 @@ const Experiments = Panel.extend({
 
   advanceTask(evt) {
     this.task += 1;
+    if (this.task > 3) {
+      this.experiment += 1;
+      this.task = 0;
+    }
+
     this.render();
   },
 });

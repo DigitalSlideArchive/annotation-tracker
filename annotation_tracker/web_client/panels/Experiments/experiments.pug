@@ -14,7 +14,7 @@ if !collapsed
   - attrs.class = 'in'
 .s-panel-content.collapse&attributes(attrs)
   .status
-    | Task #{task} #{running ? 'running' : 'suspended'}
+    | Experiment #{experiment}, Task #{task} (#{running ? 'running' : 'suspended'})
 
   .btn-group.h-experiment-control-buttons(role='group')
     button.btn.btn-default.h-toggle-experiment(type='button', title='Toggle experiment')

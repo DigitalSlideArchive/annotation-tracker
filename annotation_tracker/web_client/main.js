@@ -1,1 +1,8 @@
-console.log('Loaded Annotation Tracker!');
+import { registerPluginNamespace } from '@girder/core/pluginUtils';
+
+// Import modules for side effects.
+import './views/ImageView';
+
+// Expose symbols under girder.plugins.
+import * as annotationTracker from './index';
+registerPluginNamespace('annotation_tracker', annotationTracker);

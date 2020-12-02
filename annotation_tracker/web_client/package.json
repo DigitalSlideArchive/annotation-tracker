@@ -10,7 +10,11 @@
     },
     "girderPlugin": {
         "name": "annotation_tracker",
-        "main": "./main.js"
+        "main": "./main.js",
+        "dependencies": [
+            "histomicsui",
+            "slicer_cli_web"
+        ]
     },
     "scripts": {
         "lint": "eslint . && pug-lint . && stylint"
@@ -29,6 +33,9 @@
         "eslint-plugin-underscore": "*",
         "pug-lint": "^2",
         "stylint": "^2"
+    },
+    "dependencies": {
+        "backbone": "^1.4.0"
     },
     "eslintConfig": {
         "extends": "@girder",

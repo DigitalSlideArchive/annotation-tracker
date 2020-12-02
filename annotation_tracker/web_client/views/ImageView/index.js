@@ -17,7 +17,7 @@ wrap(ImageView, 'render', function (render) {
 
   this.$('.h-control-panel-container')
     .removeClass('hidden')
-    .append('<div class="h-experiment-widget s-panel"></div>');
+    .append('<div id="h-experiment-panel" class="h-experiment-widget s-panel"></div>');
 
   this.experiments
     .setElement('.h-experiment-widget')

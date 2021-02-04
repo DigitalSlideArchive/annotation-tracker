@@ -14,10 +14,17 @@
         "dependencies": [
             "histomicsui",
             "slicer_cli_web"
-        ]
+        ],
+        "webpack": "webpack.helper"
     },
     "scripts": {
         "lint": "eslint . && pug-lint . && stylint"
+    },
+    "dependencies": {
+        "backbone": "^1.4.0",
+        "backbone.localstorage": "^2.0.2",
+        "copy-webpack-plugin": "^4.5.2",
+        "uuid": "^8.3.2"
     },
     "devDependencies": {
         "@girder/eslint-config": "*",
@@ -33,9 +40,6 @@
         "eslint-plugin-underscore": "*",
         "pug-lint": "^2",
         "stylint": "^2"
-    },
-    "dependencies": {
-        "backbone": "^1.4.0"
     },
     "eslintConfig": {
         "extends": "@girder",

@@ -1,4 +1,5 @@
 from girder.api import access
+from girder.constants import TokenScope, SortDir
 from girder.api.rest import Resource
 from girder.api.describe import autoDescribeRoute, Description
 
@@ -11,6 +12,7 @@ class AnnotationTrackerResource(Resource):
         self.resourceName = 'annotation_tracker'
 
         self.route('POST', ('log', ), self.logActivity)
+        self.route('GET', (), self.find)
 
     @autoDescribeRoute(
         Description('Log activity to the database.')
@@ -63,3 +65,29 @@ class AnnotationTrackerResource(Resource):
         for key in list(results.keys()):
             results[key] = sorted(results[key])
         return results
+
+    @access.admin(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description('List or search for activities.')
+        .responseClass('Activity', array=True)
+        .param('sessionId', 'A session id', required=False)
+        .param('userId', 'A user id', required=False)
+        .param('activity', 'An activity string', required=False)
+        .param('subactivity', 'A subactivity string', required=False)
+        .jsonParam('query', 'Find activities that match this Mongo query.',
+                   required=False, requireObject=True)
+        .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
+        .errorResponse()
+    )
+    def find(self, sessionId, userId, activity, subactivity, query, limit, offset, sort):
+        """Get a list of activities with given search parameters."""
+        query = query or {}
+        if sessionId:
+            query['sessionId'] = sessionId
+        if userId:
+            query['userId'] = userId
+        if activity:
+            query['activity'] = activity
+        if subactivity:
+            query['subactivity'] = subactivity
+        return Activity().find(query, offset=offset, limit=limit, sort=sort)

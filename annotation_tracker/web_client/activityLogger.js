@@ -6,6 +6,8 @@ import { getApiRoot } from '@girder/core/rest';
 import events from '@girder/histomicsui/events';
 
 let activityLogger = {
+    _debug: false,
+
     worker: new Worker('/static/built/plugins/annotation_tracker/worker.js'),
     sessionId: sessionStorage.getItem('annotation_tracker.sessionId') || uuidv4(),
     sequenceId: parseInt(sessionStorage.getItem('annotation_tracker.sequenceId') || 0, 10),
@@ -24,7 +26,30 @@ let activityLogger = {
             }
         });
         sessionStorage.setItem('annotation_tracker.sessionId', this.sessionId);
-        console.log('Started annotation_tracter activityLogger', this.sessionId, this.sequenceId);
+        if (!this._started) {
+            console.log('Started annotation_tracter activityLogger', this.sessionId, this.sequenceId, this);
+            const oldonfocus = window.onfocus;
+            const oldonblur = window.onblur;
+            window.onfocus = () => {
+                this.session('focus');
+                if (oldonfocus) {
+                    oldonfocus();
+                }
+            };
+            window.onblur = () => {
+                this.session('blur');
+                if (oldonblur) {
+                    oldonblur();
+                }
+            };
+            document.addEventListener('visibilitychange', () => {
+                this.session('visibilityState');
+                if (oldonblur) {
+                    oldonblur();
+                }
+            });
+            this._started = true;
+        }
     },
 
     session: function (reason) {
@@ -35,8 +60,9 @@ let activityLogger = {
             activity: 'session',
             subactivity: reason,
             currentImage: this._view.model.id,
-            userId: (getCurrentUser() || {}).id
-            // :param hasFocus: boolean.  true if the tab has focus.
+            userId: (getCurrentUser() || {}).id,
+            hasFocus: document.hasFocus(),
+            visibilityState: document.visibilityState
         };
         if (this._map) {
             let mapsize = this._map.size();
@@ -54,6 +80,9 @@ let activityLogger = {
             };
             entry.rotation = this._map.rotation();
         }
+        if (this._debug) {
+            console.log(entry.activity, entry.subactivity, entry);
+        }
         this.worker.postMessage({
             api: '/' + getApiRoot(),
             token: getCurrentToken(),
@@ -63,15 +92,17 @@ let activityLogger = {
     },
 
     log: function (activity, properties) {
-        console.log('log', activity, properties);
+        let entry = Object.assign({}, {
+            session: this.sessionId,
+            sequenceId: (this.sequenceId += 1),
+            epochms: Date.now(),
+            activity: activity
+        }, properties || {});
+        if (this._debug) {
+            console.log(entry.activity, entry.subactivity, entry);
+        }
         this.worker.postMessage({
-            log: [{
-                session: this.sessionId,
-                sequenceId: (this.sequenceId += 1),
-                epochms: Date.now(),
-                activity: activity // ,
-                // ...properties
-            }]
+            log: [entry]
         });
         sessionStorage.setItem('annotation_tracker.sequenceId', this.sequenceId);
     }

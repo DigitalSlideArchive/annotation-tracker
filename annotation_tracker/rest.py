@@ -73,13 +73,12 @@ class AnnotationTrackerResource(Resource):
         .param('sessionId', 'A session id', required=False)
         .param('userId', 'A user id', required=False)
         .param('activity', 'An activity string', required=False)
-        .param('subactivity', 'A subactivity string', required=False)
         .jsonParam('query', 'Find activities that match this Mongo query.',
                    required=False, requireObject=True)
         .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
         .errorResponse()
     )
-    def find(self, sessionId, userId, activity, subactivity, query, limit, offset, sort):
+    def find(self, sessionId, userId, activity, query, limit, offset, sort):
         """Get a list of activities with given search parameters."""
         query = query or {}
         if sessionId:
@@ -88,6 +87,4 @@ class AnnotationTrackerResource(Resource):
             query['userId'] = userId
         if activity:
             query['activity'] = activity
-        if subactivity:
-            query['subactivity'] = subactivity
         return Activity().find(query, offset=offset, limit=limit, sort=sort)

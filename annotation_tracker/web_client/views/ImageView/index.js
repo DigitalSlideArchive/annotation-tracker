@@ -3,7 +3,7 @@ import { wrap } from '@girder/core/utilities/PluginUtils';
 import _ from 'underscore';
 
 import Experiments from '../../panels/Experiments';
-import activityLogger from '../../activityLogger';
+import activityLogger from '../../utility/activityLogger';
 
 wrap(ImageView, 'initialize', function (initialize) {
     this.experiments = new Experiments({

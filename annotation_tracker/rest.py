@@ -20,7 +20,7 @@ class AnnotationTrackerResource(Resource):
                'with a list of sequenceIds that were logged.')
         .jsonParam('activityList', 'The key to reimport.', paramType='body')
     )
-    @access.user
+    @access.public
     def logActivity(self, activityList):
         """
         The activityList is a json-encoded list of objects.  Each object must

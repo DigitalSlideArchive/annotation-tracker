@@ -63,7 +63,7 @@ let activityLogger = {
             }
         });
         if (!this._started) {
-            console.log(`Started annotation_tracter activityLogger, session ${sessionId}, sequenceId ${this.sequenceId}.`);
+            console.log(`Started annotation_tracker activityLogger, session ${sessionId}, sequenceId ${this.sequenceId}.`);
             console.log('Call window.activityLogger.debug set debugging');
             window.activityLogger = this;
             const oldonfocus = window.onfocus;

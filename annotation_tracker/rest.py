@@ -82,7 +82,7 @@ class AnnotationTrackerResource(Resource):
         """Get a list of activities with given search parameters."""
         query = query or {}
         if sessionId:
-            query['sessionId'] = sessionId
+            query['session'] = sessionId
         if userId:
             query['userId'] = userId
         if activity:

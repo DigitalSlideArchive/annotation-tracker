@@ -4,13 +4,15 @@ import _ from 'underscore';
 
 import Experiments from '../../panels/Experiments';
 import activityLogger from '../../utility/activityLogger';
-
 wrap(ImageView, 'initialize', function (initialize) {
     this.experiments = new Experiments({
-        parentView: this
+        parentView: this,
     });
 
     initialize.apply(this, _.rest(arguments));
+    this.listenTo(this.model, 'g:fetched', () => {
+        this.experiments.setFolderId(this.model.get('folderId'));
+    });
 });
 
 wrap(ImageView, 'render', function (render) {

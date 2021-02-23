@@ -10,8 +10,14 @@ wrap(ImageView, 'initialize', function (initialize) {
     });
 
     initialize.apply(this, _.rest(arguments));
+    // Fetch folderID to use for looking for experiments metadata
     this.listenTo(this.model, 'g:fetched', () => {
-        this.experiments.setFolderId(this.model.get('folderId'));
+        const folderId = this.model.get('folderId');
+        if (folderId !== undefined ) {
+            this.experiments.setFolderId(folderId);
+        } else {
+            console.warn(`ResourceId: ${this.model.get('_id')} doesn't have a folderId and can't be checked for experiments`);
+        }
     });
 });
 

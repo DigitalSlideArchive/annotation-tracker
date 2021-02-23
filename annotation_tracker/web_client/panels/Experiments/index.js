@@ -12,18 +12,16 @@ const Experiments = Panel.extend({
         'click .h-advance-task': 'advanceTask'
     }),
 
-    initialize(spec) {
+    initialize() {
         this.running = false;
         this.current_experiment  = 0;
         this.current_task = 0;
-        this.experiment = 0;
-        this.task = 0;
+        this.experiment = 'Loading...';
+        this.task = '';
         this.complete = false;
-        this.meta = {}
-
-    
-
+        this.experiments = null;
     },
+
     setFolderId(folderId) {
         //fetch the metadata from the FolderID
         const folderModel = new FolderModel();
@@ -31,15 +29,17 @@ const Experiments = Panel.extend({
             _id: folderId
         }).on('g:fetched', () => {
             this.meta = folderModel.get('meta');
-            //Now we can process the metadata for tasks
             this.processMetadata(this.meta);
-
         }).on('g:error', () => {
-            console.log('error getting folder data');
+            console.warn(`Error fetching metadata for folder: ${folderId}`);
         }, this).fetch();
     },
+
     processMetadata(metadata) {
-        if (metadata["Experiments"]) {
+        if (metadata["Experiments"] !== undefined) {
+            // TODO: JSON Schema validation at some point to ensure we have all necessary data
+            this.current_experiment  = 0;
+            this.current_task = 0;    
             this.experiments =  metadata["Experiments"];
             this.experiment = this.experiments[this.current_experiment].name;
             this.task = this.experiments[this.current_experiment].tasks[this.current_task];
@@ -47,16 +47,19 @@ const Experiments = Panel.extend({
             this.render();
         }
     },
+
     render() {
 
-        this.$el.html(experiments({
-            id: 'experiments-panel',
-            running: this.running,
-            experiment: this.experiment,
-            task: this.task,
-            complete: this.complete
-        }));
-
+        // Lets not render until we have metadata or we have a future loading state?
+        if (this.experiments) {
+            this.$el.html(experiments({
+                id: 'experiments-panel',
+                running: this.running,
+                experiment: this.experiment,
+                task: this.task,
+                complete: this.complete
+            }));
+        }
         return this;
     },
 
@@ -68,6 +71,7 @@ const Experiments = Panel.extend({
 
     advanceTask(evt) {
         this.current_task += 1;
+        // This is really simplistic and will mostlikely become more complicated in the future
         if (!this.complete) {
             if (this.current_task >= this.experiments[this.current_experiment].tasks.length) {
                 this.current_experiment += 1;

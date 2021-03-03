@@ -32,16 +32,26 @@ function targetSelector(elem) {
     return selector;
 }
 
+let nameKey = 'annotation_tracker:';
+let sessionId = uuidv4();
+if (window.name && window.name.startsWith(nameKey)) {
+    sessionId = window.name.substr(nameKey.length);
+} else {
+    window.name = nameKey + sessionId;
+}
+
 let activityLogger = {
     _debug: false,
 
     worker: new Worker('/static/built/plugins/annotation_tracker/worker.js'),
-    sessionId: sessionStorage.getItem('annotation_tracker.sessionId') || uuidv4(),
-    sequenceId: parseInt(sessionStorage.getItem('annotation_tracker.sequenceId') || 0, 10),
+    sequenceId: parseInt(sessionStorage.getItem('annotation_tracker.sequenceId.' + sessionId) || 0, 10),
 
     start: function (view) {
         if (this._view === view) {
             return;
+        }
+        if (!window.name) {
+            window.name = 'annotation_tracker';
         }
         this._view = view;
         this._map = null;
@@ -52,9 +62,8 @@ let activityLogger = {
                 this._map.geoOn(geo.event.pan, () => this.session('pan'));
             }
         });
-        sessionStorage.setItem('annotation_tracker.sessionId', this.sessionId);
         if (!this._started) {
-            console.log(`Started annotation_tracter activityLogger, session ${this.sessionId}, sequenceId ${this.sequenceId}.`);
+            console.log(`Started annotation_tracker activityLogger, session ${sessionId}, sequenceId ${this.sequenceId}.`);
             console.log('Call window.activityLogger.debug set debugging');
             window.activityLogger = this;
             const oldonfocus = window.onfocus;
@@ -114,7 +123,7 @@ let activityLogger = {
 
     session: function (activity, properties) {
         let entry = {
-            session: this.sessionId,
+            session: sessionId,
             sequenceId: (this.sequenceId += 1),
             epochms: Date.now(),
             activity: activity,
@@ -145,12 +154,12 @@ let activityLogger = {
             token: getCurrentToken(),
             log: [entry]
         });
-        sessionStorage.setItem('annotation_tracker.sequenceId', this.sequenceId);
+        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
 
     eventTarget: function (evt, activity, properties) {
         let entry = Object.assign({}, {
-            session: this.sessionId,
+            session: sessionId,
             sequenceId: (this.sequenceId += 1),
             epochms: Date.now(),
             activity: activity,
@@ -164,16 +173,22 @@ let activityLogger = {
                 entry[key] = evt[key];
             }
         });
+        if ($(evt.target).closest('.h-image-view-container.geojs-map').length && this._map) {
+            try {
+                entry.image = this._map.displayToGcs(entry.offset);
+            } catch (e) {
+            }
+        }
         this.debug_log(entry);
         this.worker.postMessage({
             log: [entry]
         });
-        sessionStorage.setItem('annotation_tracker.sequenceId', this.sequenceId);
+        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
 
     log: function (activity, properties) {
         let entry = Object.assign({}, {
-            session: this.sessionId,
+            session: sessionId,
             sequenceId: (this.sequenceId += 1),
             epochms: Date.now(),
             activity: activity
@@ -182,7 +197,7 @@ let activityLogger = {
         this.worker.postMessage({
             log: [entry]
         });
-        sessionStorage.setItem('annotation_tracker.sequenceId', this.sequenceId);
+        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     }
 };
 

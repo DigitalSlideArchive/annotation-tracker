@@ -36,11 +36,11 @@ const Experiments = Panel.extend({
     },
 
     processMetadata(metadata) {
-        if (metadata["Experiments"] !== undefined) {
+        if (metadata.experiments !== undefined) {
             // TODO: JSON Schema validation at some point to ensure we have all necessary data
             this.current_experiment  = 0;
             this.current_task = 0;    
-            this.experiments =  metadata["Experiments"];
+            this.experiments =  metadata.experiments;
             this.experiment = this.experiments[this.current_experiment].name;
             this.task = this.experiments[this.current_experiment].tasks[this.current_task];
             this.complete = false;

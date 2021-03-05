@@ -14,13 +14,16 @@ if !collapsed
   - attrs.class = 'in'
 .s-panel-content.collapse&attributes(attrs)
   .status
-    | Experiment #{experiment}, Task #{task} (#{running ? 'running' : 'suspended'})
+    if !complete
+      | Experiment: #{experiment}, Task: #{task} (#{running ? 'running' : 'suspended'})
+    else 
+      | Complete: go to the next Image
 
   .btn-group.h-experiment-control-buttons(role='group')
-    button.btn.btn-default.h-toggle-experiment(type='button', title='Toggle experiment')
+    button.btn.btn-default.h-toggle-experiment(type='button', disabled=complete title='Toggle experiment')
       if running
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-advance-task(type='button', title='Advance to next task')
+    button.btn.btn-default.h-advance-task(type='button', disabled=complete title='Advance to next task')
       span.icon-to-end

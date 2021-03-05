@@ -15,9 +15,10 @@ import events from '@girder/histomicsui/events';
  */
 function targetSelector(elem) {
     elem = $(elem);
+    let classList = [...elem[0].classList];
     let selector = elem.prop('nodeName').toLowerCase() + (
         elem.attr('id') ? '#' + elem.attr('id') : '') + (
-        elem.attr('class') ? '.' + elem.attr('class').replaceAll(' ', '.') : '');
+        classList.length ? '.' + classList.join('.') : '');
     let parent = elem.parent();
     let siblings = parent.children(selector);
     if (siblings.length > 1) {

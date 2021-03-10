@@ -15,15 +15,18 @@ if !collapsed
 .s-panel-content.collapse&attributes(attrs)
   .status
     if !complete
-      | Experiment: #{experiment}, Task: #{task} (#{running ? 'running' : 'suspended'})
-    else 
-      | Complete: go to the next Image
-
+      | Experiment: #{experiment}, Task: #{currentTask}
   .btn-group.h-experiment-control-buttons(role='group')
-    button.btn.btn-default.h-toggle-experiment(type='button', disabled=complete title='Toggle experiment')
+    button.btn.btn-default.h-toggle-task(type='button', disabled=complete title='Toggle Task')
       if running
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-advance-task(type='button', disabled=complete title='Advance to next task')
-      span.icon-to-end
+  .task-list 
+    each task, index in tasks.length ? tasks : ['There are no tasks']
+      div
+        label
+          input.h-task-radio(id=`radio_${index}` value=index type='radio' checked=task===currentTask) 
+          span 
+            | #{task}
+          

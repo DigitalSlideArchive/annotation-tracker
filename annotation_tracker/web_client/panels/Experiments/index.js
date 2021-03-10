@@ -8,8 +8,8 @@ import activityLogger from '../../utility/activityLogger';
 
 const Experiments = Panel.extend({
     events: _.extend(Panel.prototype.events, {
-        'click .h-toggle-experiment': 'toggleExperiment',
-        'click .h-advance-task': 'advanceTask'
+        'click .h-toggle-task': 'toggleTask',
+        'click .h-task-radio': 'setCurrentTask'
     }),
 
     initialize() {
@@ -41,8 +41,8 @@ const Experiments = Panel.extend({
             this.current_experiment  = 0;
             this.current_task = 0;    
             this.experiments =  metadata.experiments;
-            this.experiment = this.experiments[this.current_experiment].name;
-            this.task = this.experiments[this.current_experiment].tasks[this.current_task];
+            this.experiment = this.experiments[this.current_experiment];
+            this.task = this.experiment.tasks[this.current_task];
             this.complete = false;
             this.render();
         }
@@ -55,17 +55,26 @@ const Experiments = Panel.extend({
             this.$el.html(experiments({
                 id: 'experiments-panel',
                 running: this.running,
-                experiment: this.experiment,
-                task: this.task,
+                experiment: this.experiment.name,
+                currentTask: this.task,
+                tasks: this.experiments[this.current_experiment].tasks || [],
                 complete: this.complete
             }));
         }
         return this;
     },
 
-    toggleExperiment(evt) {
+    setCurrentTask(evt) {
+        if (this.running) {
+            this.running = !this.running;
+            activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
+        }
+        this.task = this.experiment.tasks[evt.target.value];
+        this.render();
+    },
+    toggleTask(evt) {
         this.running = !this.running;
-        activityLogger.log('experiment', {running: this.running, task: this.task, experiment: this.experiment, 'experimentAction': 'toggle'});
+        activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
         this.render();
     },
 

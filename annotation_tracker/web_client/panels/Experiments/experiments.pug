@@ -14,19 +14,74 @@ if !collapsed
   - attrs.class = 'in'
 .s-panel-content.collapse&attributes(attrs)
   .status
-    if !complete
-      | Experiment: #{experiment}, Task: #{currentTask}
+    | Experiment: #{experiment}
   .btn-group.h-experiment-control-buttons(role='group')
-    button.btn.btn-default.h-toggle-task(type='button', disabled=complete title='Toggle Task')
+    button.btn.btn-default.h-toggle-task(type='button', disabled=!currentTask title='Toggle Task')
       if running
         span.icon-pause
       else
         span.icon-play
-  .task-list 
-    each task, index in tasks.length ? tasks : ['There are no tasks']
-      div
-        label
-          input.h-task-radio(id=`radio_${index}` value=index type='radio' checked=task===currentTask) 
-          span 
-            | #{task}
-          
+    button.btn.btn-default.h-stop-experiment(type='button', disabled=!currentTask title='Stop Experiment')
+      span.icon-stop
+  - var displayStatus = running ? '(Running)' : '(Paused)';
+  - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
+  .experiment-task-list.experiment-section-list
+    .experiment-section-list-header(data-target="task")
+      span.icon-tasks
+      span
+        | Task: #{displayTask}
+      .experiment-section-list-controls
+        if sectionExpanded['task'] 
+          i.icon-up-open
+        else 
+          i.icon-down-open    
+    if sectionExpanded['task'] 
+      each task, index in tasks.length ? tasks : ['There are no tasks']
+        .h-task-item(data-task-index=index)
+          label
+            input.h-task-radio(title=task.description value=index type='radio' checked=index===taskIndex) 
+            span 
+              | #{task.name}
+  if currentTask
+    .experiment-task-description.experiment-section-list
+      .experiment-section-list-header(data-target="description")
+        span.icon-align-justify
+        span
+          | Task Description
+        .experiment-section-list-controls
+          if sectionExpanded['description']  
+            i.icon-up-open
+          else 
+            i.icon-down-open    
+      if sectionExpanded['description'] 
+        .card
+          .card-title 
+            | #{currentTask.name}
+          .card-body
+            | #{currentTask.description}
+        
+
+    if running && currentTask.userInput
+      .experiment-user-input.experiment-section-list
+        .experiment-section-list-header(data-target="input")
+          span.icon-pencil
+          span
+            | User Input
+          .experiment-section-list-controls
+            if sectionExpanded['input']  
+              i.icon-up-open
+            else 
+              i.icon-down-open    
+        if sectionExpanded['input']
+          each item, index in currentTask.userInput
+            .container-fluid
+              .row             
+                label
+                  span 
+                    | #{item.label}:
+                  if item.type === 'range'
+                    input(type=item.type title=item.help min=item.min max=item.max step=item.step)
+                  else 
+                    input(type=item.type title=item.help)
+
+        

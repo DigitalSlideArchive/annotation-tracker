@@ -6,10 +6,15 @@ import FolderModel from '@girder/core/models/FolderModel';
 import experiments from './experiments.pug';
 import activityLogger from '../../utility/activityLogger';
 
+import '../../styleSheets/panels/Experiments/experiments.styl';
+
 const Experiments = Panel.extend({
     events: _.extend(Panel.prototype.events, {
         'click .h-toggle-task': 'toggleTask',
-        'click .h-task-radio': 'setCurrentTask'
+        'click .h-stop-experiment': 'stopExperiment',
+        'click .h-task-item': 'setCurrentTask',
+        'click .experiment-section-list-header': '_toggleSectionList'
+
     }),
 
     initialize() {
@@ -17,9 +22,15 @@ const Experiments = Panel.extend({
         this.current_experiment  = 0;
         this.current_task = 0;
         this.experiment = 'Loading...';
-        this.task = '';
+        this.task = null;
         this.complete = false;
         this.experiments = null;
+        this.taskExpanded = false;
+        this.sectionExpanded = {
+            'task': false,
+            'description': false,
+            'input': false
+        };
     },
 
     setFolderId(folderId) {
@@ -39,10 +50,10 @@ const Experiments = Panel.extend({
         if (metadata.experiments !== undefined) {
             // TODO: JSON Schema validation at some point to ensure we have all necessary data
             this.current_experiment  = 0;
-            this.current_task = 0;    
+            this.taskIndex = 0;    
             this.experiments =  metadata.experiments;
             this.experiment = this.experiments[this.current_experiment];
-            this.task = this.experiment.tasks[this.current_task];
+            this.task = this.experiment.tasks[this.taskIndex];
             this.complete = false;
             this.render();
         }
@@ -56,9 +67,11 @@ const Experiments = Panel.extend({
                 id: 'experiments-panel',
                 running: this.running,
                 experiment: this.experiment.name,
+                taskIndex: this.taskIndex,
                 currentTask: this.task,
                 tasks: this.experiments[this.current_experiment].tasks || [],
-                complete: this.complete
+                complete: this.complete,
+                sectionExpanded: this.sectionExpanded
             }));
         }
         return this;
@@ -69,34 +82,33 @@ const Experiments = Panel.extend({
             this.running = !this.running;
             activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
         }
-        this.task = this.experiment.tasks[evt.target.value];
-        this.render();
+        const index = $(evt.currentTarget).data('task-index')
+        if (index < this.experiment.tasks.length){
+            this.task = this.experiment.tasks[index];
+            this.taskIndex = index;
+            this.render();
+        }
     },
     toggleTask(evt) {
         this.running = !this.running;
         activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
         this.render();
     },
-
-    advanceTask(evt) {
-        this.current_task += 1;
-        // This is really simplistic and will mostlikely become more complicated in the future
-        if (!this.complete) {
-            if (this.current_task >= this.experiments[this.current_experiment].tasks.length) {
-                this.current_experiment += 1;
-                this.current_task = 0;
-            }
-            if (this.current_experiment >= this.experiments.length) {
-                this.current_experiment = 0;
-                this.current_task = 0;
-                this.complete = true;
-            } else {
-            this.task = this.experiments[this.current_experiment].tasks[this.current_task];
-            this.experiment = this.experiments[this.current_experiment].name;
-            }
+    stopExperiment(evt) {
+        if (this.taskIndex !== -1){
+            this.running = false;
+            activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
+            this.taskIndex = -1;
+            this.task = null;
+            this.render();    
         }
-
-        activityLogger.log('experiment', {running: this.running, task: this.task, experiment: this.experiment, 'experimentAction': 'advanceTask'});
+    },
+    _toggleSectionList(evt) {
+        const target = $(evt.currentTarget).data('target');
+        console.log(`Target ${target}`);
+        if (this.sectionExpanded[target] !== undefined) {
+            this.sectionExpanded[target] = !this.sectionExpanded[target]
+        }
         this.render();
     }
 });

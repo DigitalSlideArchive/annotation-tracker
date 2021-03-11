@@ -16,14 +16,14 @@ if !collapsed
   .status
     | Experiment: #{experiment}
   .btn-group.h-experiment-control-buttons(role='group')
-    button.btn.btn-default.h-toggle-task(type='button', disabled=!currentTask title='Toggle Task')
+    button.btn.btn-default.h-toggle-task(type='button', disabled=!currentTask, title='Toggle Task')
       if running
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-stop-experiment(type='button', disabled=!currentTask title='Stop Experiment')
+    button.btn.btn-default.h-stop-experiment(type='button', disabled=!currentTask, title='Stop Experiment')
       span.icon-stop
-    button.btn.btn-default.h-next-task(type='button', disabled=!currentTask title='Next Task')
+    button.btn.btn-default.h-next-task(type='button', disabled=!currentTask, title='Next Task')
       span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
@@ -33,17 +33,17 @@ if !collapsed
       span
         | Task: #{displayTask}
       .experiment-section-list-controls
-        if sectionExpanded['task'] 
+        if sectionExpanded['task']
           i.icon-up-open
-        else 
-          i.icon-down-open    
-    if sectionExpanded['task'] 
+        else
+          i.icon-down-open
+    if sectionExpanded['task']
       .experiment-section-content
         each task, index in tasks.length ? tasks : ['There are no tasks']
           .h-task-item(data-task-index=index)
             label
-              input.h-task-radio(title=task.description value=index type='radio' checked=index===taskIndex) 
-              span 
+              input.h-task-radio(title=task.description, value=index, type='radio', checked=index===taskIndex)
+              span
                 | #{task.name}
   if currentTask
     .experiment-task-description.experiment-section-list
@@ -52,18 +52,17 @@ if !collapsed
         span
           | Task Description
         .experiment-section-list-controls
-          if sectionExpanded['description']  
+          if sectionExpanded['description']
             i.icon-up-open
-          else 
-            i.icon-down-open    
-      if sectionExpanded['description'] 
+          else
+            i.icon-down-open
+      if sectionExpanded['description']
         .experiment-section-content
           .task-description-card
-            .task-description-card-title 
+            .task-description-card-title
               | #{currentTask.name}
             .task-description-card-body
               | #{currentTask.description}
-        
 
     if running && currentTask.userInput
       .experiment-user-input.experiment-section-list
@@ -72,21 +71,19 @@ if !collapsed
           span
             | User Input
           .experiment-section-list-controls
-            if sectionExpanded['input']  
+            if sectionExpanded['input']
               i.icon-up-open
-            else 
-              i.icon-down-open    
+            else
+              i.icon-down-open
         if sectionExpanded['input']
           .experiment-section-content
             each item, index in currentTask.userInput
               .container-fluid
-                .row             
+                .row
                   label
-                    span 
+                    span
                       | #{item.label}:
                     if item.type === 'range'
-                      input(type=item.type title=item.help min=item.min max=item.max step=item.step)
-                    else 
-                      input(type=item.type title=item.help)
-
-        
+                      input(type=item.type, title=item.help, min=item.min, max=item.max, step=item.step)
+                    else
+                      input(type=item.type, title=item.help)

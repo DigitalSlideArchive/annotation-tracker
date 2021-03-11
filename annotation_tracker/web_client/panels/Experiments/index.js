@@ -13,24 +13,22 @@ const Experiments = Panel.extend({
         'click .h-toggle-task': 'toggleTask',
         'click .h-stop-experiment': 'stopExperiment',
         'click .h-task-item': 'setCurrentTask',
+        'click .h-next-task': 'nextTask',
         'click .experiment-section-list-header': '_toggleSectionList'
-
     }),
 
     initialize() {
-        this.running = false;
-        this.current_experiment  = 0;
-        this.current_task = 0;
-        this.experiment = 'Loading...';
-        this.task = null;
-        this.complete = false;
-        this.experiments = null;
-        this.taskExpanded = false;
+        this.running = false; //bool - current task running or stopped
+        this.experimentIndex  = 0; // int - index of current experiment
+        this.experiment = null; //
+        this.taskIndex = -1; //current indesk into task
+        this.task = null; // task
+        this.experiments = null; //List of experiments if we have more than one
         this.sectionExpanded = {
             'task': false,
             'description': false,
             'input': false
-        };
+        }; //Utilized for toggling the different sections in the experiments panel
     },
 
     setFolderId(folderId) {
@@ -49,12 +47,11 @@ const Experiments = Panel.extend({
     processMetadata(metadata) {
         if (metadata.experiments !== undefined) {
             // TODO: JSON Schema validation at some point to ensure we have all necessary data
-            this.current_experiment  = 0;
+            this.experimentIndex  = 0;
             this.taskIndex = 0;    
             this.experiments =  metadata.experiments;
-            this.experiment = this.experiments[this.current_experiment];
+            this.experiment = this.experiments[this.experimentIndex];
             this.task = this.experiment.tasks[this.taskIndex];
-            this.complete = false;
             this.render();
         }
     },
@@ -69,14 +66,12 @@ const Experiments = Panel.extend({
                 experiment: this.experiment.name,
                 taskIndex: this.taskIndex,
                 currentTask: this.task,
-                tasks: this.experiments[this.current_experiment].tasks || [],
-                complete: this.complete,
+                tasks: this.experiment.tasks || [],
                 sectionExpanded: this.sectionExpanded
             }));
         }
         return this;
     },
-
     setCurrentTask(evt) {
         if (this.running) {
             this.running = !this.running;
@@ -94,6 +89,21 @@ const Experiments = Panel.extend({
         activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
         this.render();
     },
+    nextTask() {
+        if (this.taskIndex < this.experiment.tasks.length - 1 ) {
+            if (this.running) {
+                this.running = !this.running;
+                activityLogger.log('task', {running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle'});
+            }
+            this.taskIndex +=1 ;
+            this.task = this.experiment.tasks[this.taskIndex];
+            this.render();
+        } else {
+            this.stopExperiment();
+            this.task = null;            
+            this.render();
+        }
+    },
     stopExperiment(evt) {
         if (this.taskIndex !== -1){
             this.running = false;
@@ -105,7 +115,6 @@ const Experiments = Panel.extend({
     },
     _toggleSectionList(evt) {
         const target = $(evt.currentTarget).data('target');
-        console.log(`Target ${target}`);
         if (this.sectionExpanded[target] !== undefined) {
             this.sectionExpanded[target] = !this.sectionExpanded[target]
         }

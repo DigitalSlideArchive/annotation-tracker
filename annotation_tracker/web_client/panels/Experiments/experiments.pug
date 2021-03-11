@@ -23,6 +23,8 @@ if !collapsed
         span.icon-play
     button.btn.btn-default.h-stop-experiment(type='button', disabled=!currentTask title='Stop Experiment')
       span.icon-stop
+    button.btn.btn-default.h-next-task(type='button', disabled=!currentTask title='Next Task')
+      span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
   .experiment-task-list.experiment-section-list
@@ -36,12 +38,13 @@ if !collapsed
         else 
           i.icon-down-open    
     if sectionExpanded['task'] 
-      each task, index in tasks.length ? tasks : ['There are no tasks']
-        .h-task-item(data-task-index=index)
-          label
-            input.h-task-radio(title=task.description value=index type='radio' checked=index===taskIndex) 
-            span 
-              | #{task.name}
+      .experiment-section-content
+        each task, index in tasks.length ? tasks : ['There are no tasks']
+          .h-task-item(data-task-index=index)
+            label
+              input.h-task-radio(title=task.description value=index type='radio' checked=index===taskIndex) 
+              span 
+                | #{task.name}
   if currentTask
     .experiment-task-description.experiment-section-list
       .experiment-section-list-header(data-target="description")
@@ -54,11 +57,12 @@ if !collapsed
           else 
             i.icon-down-open    
       if sectionExpanded['description'] 
-        .card
-          .card-title 
-            | #{currentTask.name}
-          .card-body
-            | #{currentTask.description}
+        .experiment-section-content
+          .task-description-card
+            .task-description-card-title 
+              | #{currentTask.name}
+            .task-description-card-body
+              | #{currentTask.description}
         
 
     if running && currentTask.userInput
@@ -73,15 +77,16 @@ if !collapsed
             else 
               i.icon-down-open    
         if sectionExpanded['input']
-          each item, index in currentTask.userInput
-            .container-fluid
-              .row             
-                label
-                  span 
-                    | #{item.label}:
-                  if item.type === 'range'
-                    input(type=item.type title=item.help min=item.min max=item.max step=item.step)
-                  else 
-                    input(type=item.type title=item.help)
+          .experiment-section-content
+            each item, index in currentTask.userInput
+              .container-fluid
+                .row             
+                  label
+                    span 
+                      | #{item.label}:
+                    if item.type === 'range'
+                      input(type=item.type title=item.help min=item.min max=item.max step=item.step)
+                    else 
+                      input(type=item.type title=item.help)
 
         

@@ -9,3 +9,7 @@ A Girder plugin for annotation activity tracking in HistomicsTK
 4. Launch a Mongo server: `mongod`.
 5. Run the client: `girder serve`.
 6. Visit http://localhost:8080.
+
+## Demo JSON
+1. `examples/experiment.json` contains a demo JSON file
+2. Add the JSON data onto the metadata for a Folder with the key value of `experiments`

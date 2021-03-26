@@ -112,11 +112,11 @@ let activityLogger = {
             this._debug_records = {};
         }
         if (!this._debug_records[entry.activity]) {
-            this._debug_records[entry.activity] = {last: 0, skipped: 0};
+            this._debug_records[entry.activity] = { last: 0, skipped: 0 };
         }
         if (this._debug === true || Date.now() - this._debug_records[entry.activity].last > this._debug) {
             console.log(entry.activity, entry, this._debug_records[entry.activity]);
-            this._debug_records[entry.activity] = {last: Date.now(), skipped: 0};
+            this._debug_records[entry.activity] = { last: Date.now(), skipped: 0 };
         } else {
             this._debug_records[entry.activity].skipped += 1;
         }
@@ -136,10 +136,10 @@ let activityLogger = {
         if (this._map) {
             let mapsize = this._map.size();
             entry.visibleArea = {
-                tl: this._map.displayToGcs({x: 0, y: 0}),
-                tr: this._map.displayToGcs({x: mapsize.width, y: 0}),
-                bl: this._map.displayToGcs({x: 0, y: mapsize.height}),
-                br: this._map.displayToGcs({x: mapsize.width, y: mapsize.height})
+                tl: this._map.displayToGcs({ x: 0, y: 0 }),
+                tr: this._map.displayToGcs({ x: mapsize.width, y: 0 }),
+                bl: this._map.displayToGcs({ x: 0, y: mapsize.height }),
+                br: this._map.displayToGcs({ x: mapsize.width, y: mapsize.height })
             };
             entry.imagePosition = {
                 width: mapsize.width,
@@ -165,9 +165,9 @@ let activityLogger = {
             epochms: Date.now(),
             activity: activity,
             target: targetSelector(evt.target),
-            mouse: {x: evt.clientX, y: evt.clientY},
-            page: {x: evt.pageX, y: evt.pageY},
-            offset: {x: evt.offsetX, y: evt.offsetY}
+            mouse: { x: evt.clientX, y: evt.clientY },
+            page: { x: evt.pageX, y: evt.pageY },
+            offset: { x: evt.offsetX, y: evt.offsetY }
         }, properties || {});
         ['altKey', 'ctrlKey', 'metaKey', 'shiftKey', 'button', 'buttons', 'char', 'charCode', 'key', 'keyCode', 'which'].forEach((key) => {
             if (evt[key] !== undefined && evt[key] !== false && evt[key] !== 0) {

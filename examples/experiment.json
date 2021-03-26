@@ -1,0 +1,91 @@
+[
+    {
+        "name": "Experiment 1",
+        "tasks": [
+            {
+                "description": "This is the description for Task 1",
+                "name": "Task 1",
+                "userInput": [
+                    {
+                        "help": "Your favorite Ice Cream",
+                        "label": "Ice Cream",
+                        "type": "text"
+                    }
+                ]
+            },
+            {
+                "description": "This is the description for Task 2",
+                "name": "Task 2",
+                "userInput": [
+                    {
+                        "help": "enter a number",
+                        "label": "Number",
+                        "type": "number"
+                    },
+                    {
+                        "help": "Range Slider",
+                        "label": "slider",
+                        "max": 1,
+                        "min": 0,
+                        "step": 0.01,
+                        "type": "range"
+                    },
+                    {
+                        "help": "Check a value",
+                        "label": "Check Val",
+                        "type": "checkbox"
+                    },
+                    {
+                        "help": "Enter text value",
+                        "label": "Text Val",
+                        "type": "text"
+                    }
+                ]
+            },
+            {
+                "description": "This is the description for Task 3",
+                "name": "Task 3",
+                "userInput": [
+                    {
+                        "help": "enter a number",
+                        "label": "Number",
+                        "type": "number"
+                    }
+                ]
+            },
+            {
+                "description": "This is the description for Task 4",
+                "name": "Task 4",
+                "userInput": [
+                    {
+                        "help": "enter a number",
+                        "label": "Number",
+                        "type": "number"
+                    }
+                ]
+            },
+            {
+                "description": "This is the description for Task 5",
+                "name": "Task 5",
+                "userInput": [
+                    {
+                        "help": "enter a number",
+                        "label": "Number",
+                        "type": "number"
+                    }
+                ]
+            },
+            {
+                "description": "This is the description for Task 6",
+                "name": "Task 6",
+                "userInput": [
+                    {
+                        "help": "enter a number",
+                        "label": "Number",
+                        "type": "number"
+                    }
+                ]
+            }
+        ]
+    }
+]

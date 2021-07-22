@@ -16,6 +16,6 @@ Start
 
 To start the program, in the ``devops/annotation_tracker`` directory, type::
 
-    docker-compose up
+    DSA_USER=${id -u):$(id -g) docker-compose up
 
 By default, it creates an ``admin`` user with a password of ``password``.  Some sample files will be downloaded in the ``Sample Images`` collection.

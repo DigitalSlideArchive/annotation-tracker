@@ -148,6 +148,7 @@ let activityLogger = {
                 left: this._map.node().offset().left
             };
             entry.rotation = this._map.rotation();
+            entry.zoom = this._map.zoom();
         }
         this.debug_log(entry);
         this.worker.postMessage({

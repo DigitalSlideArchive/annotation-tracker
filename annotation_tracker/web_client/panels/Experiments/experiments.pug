@@ -25,7 +25,7 @@ if !collapsed
       span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
-  - var taskHeaderClass = {"task-active": running && !sectionExpanded['task'], "task-inactive": !running && !sectionExpanded['task']}
+  - var taskHeaderClass = {"task-active": running && !sectionExpanded['task'], "task-inactive": currentTask && !running && !sectionExpanded['task']}
   .experiment-task-list.experiment-section-list
     .experiment-section-list-header(data-target="task" class=taskHeaderClass)
       span.icon-tasks

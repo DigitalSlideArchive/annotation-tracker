@@ -21,14 +21,13 @@ if !collapsed
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-stop-experiment(type='button', disabled=!currentTask, title='Stop Experiment')
-      span.icon-stop
     button.btn.btn-default.h-next-task(type='button', disabled=!currentTask, title='Next Task')
       span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
+  - var taskHeaderClass = {"task-active": running && !sectionExpanded['task'], "task-inactive": !running && !sectionExpanded['task']}
   .experiment-task-list.experiment-section-list
-    .experiment-section-list-header(data-target="task")
+    .experiment-section-list-header(data-target="task" class=taskHeaderClass)
       span.icon-tasks
       span
         | Task: #{displayTask}
@@ -40,10 +39,10 @@ if !collapsed
     if sectionExpanded['task']
       .experiment-section-content
         each task, index in tasks.length ? tasks : ['There are no tasks']
-          .h-task-item(data-task-index=index)
+          .h-task-item(data-task-index=index class={ "task-active": index===taskIndex && running, "task-inactive": index ===taskIndex && !running})
             label
               input.h-task-radio(title=task.description, value=index, type='radio', checked=index===taskIndex)
-              span
+              span.h-task-radio-text
                 | #{task.name}
   if currentTask
     .experiment-task-description.experiment-section-list

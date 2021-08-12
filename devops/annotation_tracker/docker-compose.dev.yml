@@ -1,0 +1,16 @@
+version: "2.4"
+services:
+
+  girder:
+    volumes:
+      - ./provision.py /conf/
+      - ./init_girder_dev.sh /conf/
+      - ../../../annotation-tracker:/annotation-tracker
+    entrypoint: ["/conf/init_girder_dev.sh"]
+
+  mc:
+    image: mongo:latest
+    command: ["mongo", "mongodb://mongo:27017/girder"]
+
+# After running to do web dev "docker exec -it {annotation_tracker_girder_1} exec girder build --watch-plugin annotation_tracker"
+# {annotation_tracker_girder_1} - replace with the girder container name

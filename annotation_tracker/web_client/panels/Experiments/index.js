@@ -11,7 +11,6 @@ import '../../styleSheets/panels/Experiments/experiments.styl';
 const Experiments = Panel.extend({
     events: _.extend(Panel.prototype.events, {
         'click .h-toggle-task': 'toggleTask',
-        'click .h-stop-experiment': 'stopExperiment',
         'click .h-task-item': 'setCurrentTask',
         'click .h-next-task': 'nextTask',
         'click .experiment-section-list-header': '_toggleSectionList'
@@ -73,7 +72,6 @@ const Experiments = Panel.extend({
     },
     setCurrentTask(evt) {
         if (this.running) {
-            this.running = !this.running;
             activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle' });
         }
         const index = this.$(evt.currentTarget).data('task-index');
@@ -91,7 +89,6 @@ const Experiments = Panel.extend({
     nextTask() {
         if (this.taskIndex < this.experiment.tasks.length - 1) {
             if (this.running) {
-                this.running = !this.running;
                 activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle' });
             }
             this.taskIndex += 1;

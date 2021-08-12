@@ -1,8 +1,10 @@
 import os
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
+
 
 def prerelease_local_scheme(version):
     """
@@ -38,7 +40,7 @@ setup(
         'histomicsui',
         'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff]',
         'celery<5',
-        'urllib3<1.26,>=1.25.4',
+        'urllib3',
     ],
     license='Apache Software License 2.0',
     long_description=readme,

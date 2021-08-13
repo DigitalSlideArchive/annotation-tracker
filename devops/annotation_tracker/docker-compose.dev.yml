@@ -3,8 +3,6 @@ services:
 
   girder:
     volumes:
-      - ./provision.py /conf/
-      - ./init_girder_dev.sh /conf/
       - ../../../annotation-tracker:/annotation-tracker
     entrypoint: ["/conf/init_girder_dev.sh"]
 

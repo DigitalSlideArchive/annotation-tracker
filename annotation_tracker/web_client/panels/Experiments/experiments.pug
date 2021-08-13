@@ -21,7 +21,7 @@ if !collapsed
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-next-task(type='button', disabled=!currentTask, title='Next Task')
+    button.btn.btn-default.h-next-task(type='button', disabled=(!currentTask || !running), title='Next Task')
       span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';

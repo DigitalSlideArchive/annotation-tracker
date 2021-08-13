@@ -20,7 +20,7 @@ onmessage = function (evt) {
     sendLogs = function () {
         sendLogTimeout = null;
         const logs = logsToSend.slice(0, logsToSend.length);
-        if (!logs.length) {
+        if (!logs.length || !api) {
             return;
         }
         sendLogTimeout = 'sending';

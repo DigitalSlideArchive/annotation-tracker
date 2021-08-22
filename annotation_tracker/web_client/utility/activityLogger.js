@@ -43,6 +43,7 @@ if (window.name && window.name.startsWith(nameKey)) {
 
 let activityLogger = {
     _debug: false,
+    _sessionRunning: false,
 
     worker: new Worker('/static/built/plugins/annotation_tracker/worker.js'),
     sequenceId: parseInt(sessionStorage.getItem('annotation_tracker.sequenceId.' + sessionId) || 0, 10),
@@ -57,10 +58,12 @@ let activityLogger = {
         this._view = view;
         this._map = null;
         view.listenTo(events, 'h:imageOpened', (image) => {
-            this.session('imageOpened');
-            if (this._view.viewerWidget && this._view.viewerWidget.viewer && this._view.viewerWidget.viewer !== this._map) {
-                this._map = this._view.viewerWidget.viewer;
-                this._map.geoOn(geo.event.pan, () => this.session('pan'));
+            if (this._sessionRunning) {
+                this.session('imageOpened');
+                if (this._view.viewerWidget && this._view.viewerWidget.viewer && this._view.viewerWidget.viewer !== this._map) {
+                    this._map = this._view.viewerWidget.viewer;
+                    this._map.geoOn(geo.event.pan, () => this.session('pan'));
+                }
             }
         });
         if (!this._started) {
@@ -70,23 +73,31 @@ let activityLogger = {
             const oldonfocus = window.onfocus;
             const oldonblur = window.onblur;
             window.onfocus = () => {
-                this.session('focus');
-                if (oldonfocus) {
-                    oldonfocus();
+                if (this._sessionRunning) {
+                    this.session('focus');
+                    if (oldonfocus) {
+                        oldonfocus();
+                    }
                 }
             };
             window.onblur = () => {
-                this.session('blur');
-                if (oldonblur) {
-                    oldonblur();
+                if (this._sessionRunning) {
+                    this.session('blur');
+                    if (oldonblur) {
+                        oldonblur();
+                    }
                 }
             };
             $(document).on('visibilitychange', () => {
-                this.session('visibilityState');
+                if (this._sessionRunning) {
+                    this.session('visibilityState');
+                }
             });
             ['mousemove', 'mousedown', 'mouseup', 'keydown', 'keyup', 'click'].forEach((key) => {
                 $(document).on(key, (evt) => {
-                    this.eventTarget(evt, key);
+                    if (this._sessionRunning) {
+                        this.eventTarget(evt, key);
+                    }
                 });
             });
             this._started = true;
@@ -200,7 +211,20 @@ let activityLogger = {
             log: [entry]
         });
         sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
-    }
+    },
+    stopSession: function(properties) {
+        this.log("stopSession", properties);
+        this._startSession = false;
+    },
+    startSession : function (properties) {
+        // Stop current session
+        this._sessionRunning = true;
+        sessionId = uuidv4();
+        window.name = nameKey + sessionId;
+        this.sequenceId = parseInt(sessionStorage.getItem('annotation_tracker.sequenceId.' + sessionId) || 0, 10);
+        this.log("startSession", properties);
+    },
+
 };
 
 export default activityLogger;

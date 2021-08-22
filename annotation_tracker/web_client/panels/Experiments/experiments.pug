@@ -15,13 +15,20 @@ if !collapsed
 .s-panel-content.collapse&attributes(attrs)
   .status
     | Experiment: #{experiment}
+  - var sessionButtonClass = {"start-session": !sessionStarted, "stop-session": sessionStarted, "experiment-notify": notify =="experiment-session-button"}
+  - var sessionButtonText = !sessionStarted ? "Start Session" : "End Session"
+  div
+    .btn-group.h-experiment-session-button(role='group')
+      button.btn.btn-default.experiment-session-button(type='button', class=sessionButtonClass, title='Start Session')
+        span
+        | #{sessionButtonText}
   .btn-group.h-experiment-control-buttons(role='group')
-    button.btn.btn-default.h-toggle-task(type='button', disabled=!currentTask, title='Toggle Task')
+    button.btn.btn-default.h-toggle-task(type='button', disabled=(!sessionStarted || !currentTask), title='Toggle Task')
       if running
         span.icon-pause
       else
         span.icon-play
-    button.btn.btn-default.h-next-task(type='button', disabled=(!currentTask || !running), title='Next Task')
+    button.btn.btn-default.h-next-task(type='button', disabled=(!sessionStarted || !currentTask || !running), title='Next Task')
       span.icon-fast-fw
   - var displayStatus = running ? '(Running)' : '(Paused)';
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
@@ -41,8 +48,8 @@ if !collapsed
         each task, index in tasks.length ? tasks : ['There are no tasks']
           .h-task-item(data-task-index=index class={ "task-active": index===taskIndex && running, "task-inactive": index ===taskIndex && !running})
             label
-              input.h-task-radio(title=task.description, value=index, type='radio', checked=index===taskIndex)
-              span.h-task-radio-text
+              input.h-task-radio(title=task.description,disabled=!sessionStarted, value=index, type='radio', checked=index===taskIndex)
+              span.h-task-radio-text(disabled=!sessionStarted)
                 | #{task.name}
   if currentTask
     .experiment-task-description.experiment-section-list

@@ -64,8 +64,10 @@ let activityLogger = {
             }
         });
         if (!this._started) {
-            console.log(`Started annotation_tracker activityLogger, session ${sessionId}, sequenceId ${this.sequenceId}.`);
-            console.log('Call window.activityLogger.debug set debugging');
+            if (this._sessionRunning) {
+                console.log(`Started annotation_tracker activityLogger, session ${sessionId}, sequenceId ${this.sequenceId}.`);
+            }
+            console.log('Call window.activityLogger.debug to set debugging');
             window.activityLogger = this;
             const oldonfocus = window.onfocus;
             const oldonblur = window.onblur;
@@ -209,20 +211,23 @@ let activityLogger = {
         });
         sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
-    stopSession: function(properties) {
-        this.session("stopSession", properties);
+    stopSession: function (properties) {
+        // Stop current session
+        if (this._sessionRunning) {
+            this.session('stopSession', properties);
+            console.log(`Stopped annotation_tracker activityLogger session ${sessionId}, sequenceId ${this.sequenceId}.`);
+        }
         this._sessionRunning = false;
     },
-    startSession : function (properties) {
-        // Stop current session
+    startSession: function (properties) {
         this._sessionRunning = true;
         sessionId = uuidv4();
+        this.sequenceId = 0;
         window.name = nameKey + sessionId;
-        this.sequenceId = parseInt(sessionStorage.getItem('annotation_tracker.sequenceId.' + sessionId) || 0, 10);
-        this.log("startSession", properties);
-        this.session("startSession", properties);
-    },
-
+        console.log(`Started annotation_tracker activityLogger session ${sessionId}, sequenceId ${this.sequenceId}.`);
+        this.log('startSession', properties);
+        this.session('startSession', properties);
+    }
 };
 
 export default activityLogger;

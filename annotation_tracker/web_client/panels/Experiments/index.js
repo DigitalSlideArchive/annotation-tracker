@@ -1,4 +1,5 @@
 import _ from 'underscore';
+import $ from 'jquery';
 
 import Panel from '@girder/slicer_cli_web/views/Panel';
 import FolderModel from '@girder/core/models/FolderModel';
@@ -14,7 +15,7 @@ const Experiments = Panel.extend({
         'click .h-task-item': 'setCurrentTask',
         'click .h-next-task': 'nextTask',
         'click .experiment-section-list-header': '_toggleSectionList',
-        'click .experiment-session-button': 'toggleSession',
+        'click .experiment-session-button': 'toggleSession'
     }),
 
     initialize() {
@@ -57,9 +58,9 @@ const Experiments = Panel.extend({
         }
     },
     setKeyboardShortcuts() {
-        const numbers = ['1','2','3','4','5','6','7','8','9'];
+        const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
         $(document).on('keydown', (evt) => {
-            if (evt.key == "Escape") {
+            if (evt.key === 'Escape') {
                 this.stopSession();
                 evt.preventDefault();
             } else if (evt.key === ' ' || evt.key === 'Spacebar') {
@@ -89,7 +90,6 @@ const Experiments = Panel.extend({
                     }
                 }
             }
-
         });
     },
     render() {
@@ -104,7 +104,7 @@ const Experiments = Panel.extend({
                 tasks: this.experiment.tasks || [],
                 sectionExpanded: this.sectionExpanded,
                 sessionStarted: this.sessionStarted,
-                notify: this.notify,
+                notify: this.notify
             }));
             this.notify = '';
         }
@@ -177,13 +177,12 @@ const Experiments = Panel.extend({
         this.render();
     },
     stopSession() {
-        activityLogger.stopSession({experiment: this.experiment.name})
+        activityLogger.stopSession({experiment: (this.experiment || {}).name});
         this.sessionStarted = false;
         this.running = false;
         this.taskIndex = -1; // current indesk into task
         this.task = null; // task
         this.render();
-
     },
     _toggleSectionList(evt) {
         const target = this.$(evt.currentTarget).data('target');

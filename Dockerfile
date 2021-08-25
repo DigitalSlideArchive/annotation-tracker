@@ -71,8 +71,7 @@ RUN girder build && \
     find /usr/local/lib/python3.9 -name node_modules -exec rm -rf {} \+ && \
     rm -rf /tmp/npm*
 
-COPY ./devops/annotation_tracker/girder.local.conf ./devops/annotation_tracker/provision.py /conf/
+COPY ./devops/annotation_tracker/girder.local.conf ./devops/annotation_tracker/provision.py ./devops/annotation_tracker/init_girder.sh ./devops/annotation_tracker/init_girder_dev.sh   /conf/
+RUN chmod +x /conf/init_girder.sh
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-CMD python3.9 /conf/provision.py && (girder mount /fuse || true) && girder serve
+ENTRYPOINT ["/conf/init_girder.sh"]

@@ -58,12 +58,9 @@ let activityLogger = {
         this._view = view;
         this._map = null;
         view.listenTo(events, 'h:imageOpened', (image) => {
-            if (this._sessionRunning) {
-                this.session('imageOpened');
-                if (this._view.viewerWidget && this._view.viewerWidget.viewer && this._view.viewerWidget.viewer !== this._map) {
-                    this._map = this._view.viewerWidget.viewer;
-                    this._map.geoOn(geo.event.pan, () => this.session('pan'));
-                }
+            if (this._view.viewerWidget && this._view.viewerWidget.viewer && this._view.viewerWidget.viewer !== this._map) {
+                this._map = this._view.viewerWidget.viewer;
+                this._map.geoOn(geo.event.pan, () => this.session('pan'));
             }
         });
         if (!this._started) {
@@ -213,8 +210,8 @@ let activityLogger = {
         sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
     stopSession: function(properties) {
-        this.log("stopSession", properties);
-        this._startSession = false;
+        this.session("stopSession", properties);
+        this._sessionRunning = false;
     },
     startSession : function (properties) {
         // Stop current session
@@ -223,6 +220,7 @@ let activityLogger = {
         window.name = nameKey + sessionId;
         this.sequenceId = parseInt(sessionStorage.getItem('annotation_tracker.sequenceId.' + sessionId) || 0, 10);
         this.log("startSession", properties);
+        this.session("startSession", properties);
     },
 
 };

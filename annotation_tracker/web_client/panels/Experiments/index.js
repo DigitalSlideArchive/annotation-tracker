@@ -61,21 +61,29 @@ const Experiments = Panel.extend({
         $(document).on('keydown', (evt) => {
             if (evt.key == "Escape") {
                 this.stopSession();
+                evt.preventDefault();
             } else if (evt.key === ' ' || evt.key === 'Spacebar') {
-                this.toggleTask()
+                this.toggleTask();
+                evt.preventDefault();
             } else if (evt.key === 'Enter') {
                 this.nextTask();
+                evt.preventDefault();
             } else if (numbers.includes(evt.key)) {
                 const index = parseInt(evt.key, 10) - 1;
                 if (index < this.experiment.tasks.length) {
                     if (this.sessionStarted) {
+                        evt.preventDefault();
                         if (this.running) {
+                            // Record current Task being toggled Off
                             activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle' });
                         }
                         this.task = this.experiment.tasks[index];
                         this.taskIndex = index;
+                        // Record new Task being toggled On
+                        activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle' });
                         this.render();
                     } else {
+                        // Flash session button if trying to access a task when a session isn't started.
                         this.notify = 'experiment-session-button';
                         this.render();
                     }

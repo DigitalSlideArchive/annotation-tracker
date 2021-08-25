@@ -1,6 +1,8 @@
 import ImageView from '@girder/histomicsui/views/body/ImageView';
 import { wrap } from '@girder/core/utilities/PluginUtils';
 import _ from 'underscore';
+import events from '@girder/histomicsui/events';
+
 
 import Experiments from '../../panels/Experiments';
 import activityLogger from '../../utility/activityLogger';
@@ -25,6 +27,8 @@ wrap(ImageView, 'render', function (render) {
     render.call(this);
 
     activityLogger.start(this);
+    // Stop Session recording on Image change
+    this.listenTo(events, 'h:imageOpened', () => this.experiments.stopSession());
 
     if (!this.$('.h-experiment-widget').length) {
         this.$('.h-control-panel-container')

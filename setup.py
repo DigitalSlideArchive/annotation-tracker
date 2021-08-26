@@ -1,8 +1,10 @@
 import os
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
+
 
 def prerelease_local_scheme(version):
     """
@@ -36,7 +38,7 @@ setup(
     description='A Girder plugin for annotation tracking in HistomicsUI',
     install_requires=[
         'histomicsui',
-        'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff]',
+        'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff,deepzoom,bioformats]',
         'celery<5',
         'urllib3<1.26,>=1.25.4',
     ],

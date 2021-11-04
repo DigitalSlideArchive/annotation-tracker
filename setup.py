@@ -40,7 +40,7 @@ setup(
         'histomicsui',
         'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff,deepzoom,bioformats]',
         'celery<5',
-        'urllib3<1.26,>=1.25.4',
+        'urllib3',
     ],
     license='Apache Software License 2.0',
     long_description=readme,

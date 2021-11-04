@@ -4,6 +4,7 @@ services:
   girder:
     image: dsarchive/annotation_tracker
     build: ../..
+    platform: linux/amd64
     # Set CURRENT_UID to your user id (e.g., `CURRENT_UID=$(id -u):$(id -g)`)
     # so that local file assetstores and logs are owned by yourself.
     # user: ${CURRENT_UID}

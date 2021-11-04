@@ -39,6 +39,8 @@ setup(
     install_requires=[
         'histomicsui',
         'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff,deepzoom,bioformats]',
+        'large-image-converter',
+        'large-image-tasks',
         'celery<5',
         'urllib3',
     ],

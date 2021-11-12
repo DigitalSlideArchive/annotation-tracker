@@ -34,7 +34,7 @@ if !collapsed
   - var displayTask = currentTask ? `${currentTask.name} ${displayStatus}` : 'No Selected Task';
   - var taskHeaderClass = {"task-active": running && !sectionExpanded['task'], "task-inactive": currentTask && !running && !sectionExpanded['task']}
   .experiment-task-list.experiment-section-list
-    .experiment-section-list-header(data-target="task" class=taskHeaderClass)
+    .experiment-section-list-header(data-target="task", class=taskHeaderClass)
       span.icon-tasks
       span
         | Task: #{displayTask}
@@ -46,9 +46,9 @@ if !collapsed
     if sectionExpanded['task']
       .experiment-section-content
         each task, index in tasks.length ? tasks : ['There are no tasks']
-          .h-task-item(data-task-index=index class={ "task-active": index===taskIndex && running, "task-inactive": index ===taskIndex && !running})
+          .h-task-item(data-task-index=index, class={ "task-active": index === taskIndex && running, "task-inactive": index === taskIndex && !running})
             label
-              input.h-task-radio(title=task.description,disabled=!sessionStarted, value=index, type='radio', checked=index===taskIndex)
+              input.h-task-radio(title=task.description, disabled=!sessionStarted, value=index, type='radio', checked=index === taskIndex)
               span.h-task-radio-text(disabled=!sessionStarted)
                 | #{task.name}
   if currentTask

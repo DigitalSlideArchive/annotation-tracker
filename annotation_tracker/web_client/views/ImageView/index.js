@@ -27,8 +27,35 @@ wrap(ImageView, 'render', function (render) {
 
     activityLogger.start(this);
     // Stop Session recording on Image change
-    this.listenTo(events, 'h:imageOpened', () => this.experiments.stopSession());
-
+    if (!this._annotationTrackerListening) {
+        this._annotationTrackerListening = true;
+        this.listenTo(events, 'h:imageOpened', () => this.experiments.stopSession());
+        this.listenTo(this.annotationSelector, 'h:deleteAnnotation', (annot) => {
+            activityLogger.log('annotation', {
+                annotationAction: 'delete',
+                annotation: annot.id
+            });
+        });
+        this.listenTo(this.annotationSelector, 'h:editAnnotation', (annot) => {
+            annot = annot || {};
+            activityLogger.log('annotation', {
+                annotationAction: annot.id ? 'edit' : 'stopedit',
+                annotation: annot.id,
+                annotationVersion: annot.get ? annot.get('_version') : undefined
+            });
+        });
+        this.listenTo(this.annotationSelector.collection, 'change:annotation', (annot) => {
+            if (!annot || annot._inFetch || annot.get('loading')) {
+                return;
+            }
+            activityLogger.log('annotation', {
+                annotationAction: 'update',
+                annotation: annot.id,
+                annotationVersion: annot.get('_version'),
+                elementCount: (annot.get('annotation').elements || []).length
+            });
+        });
+    }
     if (!this.$('.h-experiment-widget').length) {
         this.$('.h-control-panel-container')
             .removeClass('hidden')

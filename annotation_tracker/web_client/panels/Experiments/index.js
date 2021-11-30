@@ -35,6 +35,7 @@ const Experiments = Panel.extend({
         this.resizeObservers = []; // [observer, element]
     },
     observePanels() {
+        this.resizeObservers = [];
         $('.s-panel').each((_index, element) => {
             const observer = new ResizeObserver((data) => {
                 activityLogger.logPanelPositions();        
@@ -44,11 +45,9 @@ const Experiments = Panel.extend({
         });
     },
     unobservePanels() {
-        if (this.resizeObservers.length > 0) {
-            this.resizeObservers.forEach(([observer, element]) => {
-                observer.unobserve(element);
-            })
-        }
+        this.resizeObservers.forEach(([observer, element]) => {
+            observer.unobserve(element);
+        })
     },
     setFolderId(folderId) {
         // fetch the metadata from the FolderID

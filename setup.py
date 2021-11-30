@@ -52,7 +52,8 @@ setup(
     name='annotation_tracker',
     packages=find_packages(exclude=['test', 'test.*']),
     url='https://github.com/arclamp/annotation-tracker',
-    use_scm_version={'local_scheme': prerelease_local_scheme},
+    use_scm_version={'local_scheme': prerelease_local_scheme, 'fallback_version': 'development'},
+    setup_requires=['setuptools-scm'],
     zip_safe=False,
     python_requires='>=3.6',
     entry_points={

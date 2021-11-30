@@ -160,6 +160,53 @@ let activityLogger = {
             entry.rotation = this._map.rotation();
             entry.zoom = this._map.zoom();
         }
+        if (this._view) {
+            const panels = this._view.$el.find('.s-panel-group>div:visible');
+            entry.panels = panels.toArray().map((panel) => {
+                let elem = $(panel);
+                let offset = elem.offset();
+                return {
+                    title: elem.find('.h-panel-title').text().trim(),
+                    top: offset.top,
+                    left: offset.left,
+                    width: elem.width(),
+                    height: elem.height()
+                };
+            });
+            const containers = this._view.$el.find('.s-panel-group');
+            containers.toArray().forEach((cont) => {
+                let elem = $(cont);
+                let firstpanel = elem.children('div:visible:first');
+                if (elem.width() - firstpanel.width() > 10) {
+                    let offset = elem.offset();
+                    console.log(firstpanel.offset().left, offset.left, firstpanel.outerWidth());
+                    let fpwidth = firstpanel.offset().left - offset.left + firstpanel.outerWidth();
+                    // the width may not actually be quite right
+                    entry.panels.push({
+                        title: '_scrollbar',
+                        top: offset.top,
+                        left: offset.left + fpwidth,
+                        width: elem.width() - fpwidth,
+                        height: elem.height()
+                    });
+                }
+            });
+            entry.panels = entry.panels.filter((p) => p.width && p.height);
+            if (this._map) {
+                entry.panels.forEach((panel) => {
+                    let t = panel.top;
+                    let b = panel.top + panel.height;
+                    let l = panel.left;
+                    let r = panel.left + panel.width;
+                    panel.coveredArea = {
+                        tl: this._map.displayToGcs({ x: l, y: t }),
+                        tr: this._map.displayToGcs({ x: r, y: t }),
+                        bl: this._map.displayToGcs({ x: l, y: b }),
+                        br: this._map.displayToGcs({ x: r, y: b })
+                    };
+                });
+            }
+        }
         this.debug_log(entry);
         this.worker.postMessage({
             api: '/' + getApiRoot(),

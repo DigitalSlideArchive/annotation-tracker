@@ -179,7 +179,7 @@ const Experiments = Panel.extend({
         this.render();
     },
     stopSession() {
-        activityLogger.stopSession({experiment: (this.experiment || {}).name});
+        activityLogger.stopSession({ experiment: (this.experiment || {}).name });
         this.sessionStarted = false;
         this.running = false;
         this.taskIndex = -1; // current indesk into task

@@ -15,7 +15,10 @@ const Experiments = Panel.extend({
         'click .h-task-item': 'setCurrentTask',
         'click .h-next-task': 'nextTask',
         'click .experiment-section-list-header': '_toggleSectionList',
-        'click .experiment-session-button': 'toggleSession'
+        'click .experiment-session-button': 'toggleSession',
+        'input .experiment-user-input.experiment-section-list input': 'updateUserInput',
+        'change .experiment-user-input.experiment-section-list input': 'updateUserInput',
+        'blur .experiment-user-input.experiment-section-list input': 'updateUserInput'
     }),
 
     initialize() {
@@ -94,11 +97,11 @@ const Experiments = Panel.extend({
                         evt.preventDefault();
                         if (this.task !== this.experiment.tasks[index]) {
                             if (this.running) {
-                                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'switch' });
+                                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'switch' });
                             }
                             this.task = this.experiment.tasks[index];
                             this.taskIndex = index;
-                            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'set' });
+                            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'set' });
                         }
                         this.render();
                     } else {
@@ -133,11 +136,11 @@ const Experiments = Panel.extend({
             const index = this.$(evt.currentTarget).data('task-index');
             if (index < this.experiment.tasks.length && this.task !== this.experiment.tasks[index]) {
                 if (this.running) {
-                    activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'switch' });
+                    activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'switch' });
                 }
                 this.task = this.experiment.tasks[index];
                 this.taskIndex = index;
-                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'set' });
+                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'set' });
                 this.render();
             }
         } else {
@@ -148,7 +151,7 @@ const Experiments = Panel.extend({
     toggleTask(evt) {
         if (this.sessionStarted) {
             this.running = !this.running;
-            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'toggle' });
+            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'toggle' });
             this.render();
         }
     },
@@ -156,11 +159,11 @@ const Experiments = Panel.extend({
         if (this.sessionStarted) {
             if (this.taskIndex < this.experiment.tasks.length - 1) {
                 if (this.running) {
-                    activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'switch' });
+                    activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'switch' });
                 }
                 this.taskIndex += 1;
                 this.task = this.experiment.tasks[this.taskIndex];
-                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'set' });
+                activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'set' });
                 this.render();
             } else {
                 this.stopTask();
@@ -175,7 +178,7 @@ const Experiments = Panel.extend({
     stopTask(evt) {
         if (this.taskIndex !== -1) {
             this.running = false;
-            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, 'taskAction': 'stop' });
+            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'stop' });
             this.taskIndex = -1;
             this.task = null;
             this.render();
@@ -212,6 +215,23 @@ const Experiments = Panel.extend({
             this.sectionExpanded[target] = !this.sectionExpanded[target];
         }
         this.render();
+    },
+    updateUserInput(evt) {
+        const target = $(evt.target);
+        const parent = target.closest('label[input_index]');
+        const idx = parseInt(parent.attr('input_index'), 10);
+        if (!this.task.userInput || !this.task.userInput[idx]) {
+            return;
+        }
+        const record = this.task.userInput[idx];
+        if (record.label !== parent.attr('name')) {
+            return;
+        }
+        let val = target.is('[type="checkbox"]') ? target.is(':checked') : target.val();
+        if (val !== record.value) {
+            record.value = val;
+            activityLogger.log('task', { running: this.running, task: this.task, experiment: this.experiment.name, taskAction: 'userInput' });
+        }
     }
 });
 

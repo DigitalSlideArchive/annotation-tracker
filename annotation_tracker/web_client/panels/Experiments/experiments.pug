@@ -86,10 +86,13 @@ if !collapsed
             each item, index in currentTask.userInput
               .container-fluid
                 .row
-                  label
+                  label(input_index=index, name=item.label)
                     span
                       | #{item.label}:
+                      =" "
                     if item.type === 'range'
-                      input(type=item.type, title=item.help, min=item.min, max=item.max, step=item.step)
+                      input(type=item.type, title=item.help, min=item.min, max=item.max, step=item.step, value=item.value)
+                    else if item.type === 'checkbox'
+                      input(type=item.type, title=item.help, checked=item.value)
                     else
-                      input(type=item.type, title=item.help)
+                      input(type=item.type, title=item.help, value=item.value)

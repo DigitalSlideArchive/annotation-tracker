@@ -117,7 +117,7 @@ Tasks generate `task` activity logs.  This includes:
                  session>,
     epochms: <integer: the current time in linux epoch milliseconds>,
     activity: 'task',
-    taskAction: <string: one of 'switch', 'set', 'toggle', 'stop'>
+    taskAction: <string: one of 'switch', 'set', 'toggle', 'stop', 'userInput'>
     experiment: <string: current experiment title>,
     running: <boolean: true if the experiment is running>,
     task: {    // data from the current task including any user input

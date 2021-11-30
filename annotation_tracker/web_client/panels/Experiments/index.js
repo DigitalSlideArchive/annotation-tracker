@@ -32,8 +32,23 @@ const Experiments = Panel.extend({
             'input': false
         }; // Utilized for toggling the different sections in the experiments panel
         this.sessionStarted = false;
+        this.resizeObservers = []; // [observer, element]
     },
-
+    observePanels() {
+        this.resizeObservers = [];
+        $('.s-panel').each((_index, element) => {
+            const observer = new ResizeObserver((data) => {
+                activityLogger.logPanelPositions();        
+            });
+            observer.observe(element);
+            this.resizeObservers.push([observer, element]);
+        });
+    },
+    unobservePanels() {
+        this.resizeObservers.forEach(([observer, element]) => {
+            observer.unobserve(element);
+        })
+    },
     setFolderId(folderId) {
         // fetch the metadata from the FolderID
         const folderModel = new FolderModel();
@@ -176,6 +191,7 @@ const Experiments = Panel.extend({
         this.task = this.experiment.tasks[this.taskIndex];
         this.sessionStarted = true;
         this.sectionExpanded['task'] = true;
+        this.observePanels();
         this.render();
     },
     stopSession() {
@@ -184,6 +200,7 @@ const Experiments = Panel.extend({
         this.running = false;
         this.taskIndex = -1; // current indesk into task
         this.task = null; // task
+        this.unobservePanels();
         this.render();
     },
     _toggleSectionList(evt) {

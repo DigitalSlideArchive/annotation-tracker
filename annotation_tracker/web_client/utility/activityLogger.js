@@ -161,8 +161,21 @@ let activityLogger = {
             entry.zoom = this._map.zoom();
         }
         if (this._view) {
+            entry.panels = this.calculatePanelPositions();
+        }
+        this.debug_log(entry);
+        this.worker.postMessage({
+            api: '/' + getApiRoot(),
+            token: getCurrentToken(),
+            log: [entry]
+        });
+        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
+    },
+    calculatePanelPositions() {
+        let loggedPanels = []
+        if (this._view) {
             const panels = this._view.$el.find('.s-panel-group>div:visible');
-            entry.panels = panels.toArray().map((panel) => {
+            loggedPanels = panels.toArray().map((panel) => {
                 let elem = $(panel);
                 let offset = elem.offset();
                 return {
@@ -182,7 +195,7 @@ let activityLogger = {
                     console.log(firstpanel.offset().left, offset.left, firstpanel.outerWidth());
                     let fpwidth = firstpanel.offset().left - offset.left + firstpanel.outerWidth();
                     // the width may not actually be quite right
-                    entry.panels.push({
+                    loggedPanels.push({
                         title: '_scrollbar',
                         top: offset.top,
                         left: offset.left + fpwidth,
@@ -191,9 +204,9 @@ let activityLogger = {
                     });
                 }
             });
-            entry.panels = entry.panels.filter((p) => p.width && p.height);
+            loggedPanels = loggedPanels.filter((p) => p.width && p.height);
             if (this._map) {
-                entry.panels.forEach((panel) => {
+                loggedPanels.forEach((panel) => {
                     let t = panel.top;
                     let b = panel.top + panel.height;
                     let l = panel.left;
@@ -207,15 +220,8 @@ let activityLogger = {
                 });
             }
         }
-        this.debug_log(entry);
-        this.worker.postMessage({
-            api: '/' + getApiRoot(),
-            token: getCurrentToken(),
-            log: [entry]
-        });
-        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
+        return loggedPanels;
     },
-
     eventTarget: function (evt, activity, properties) {
         let entry = Object.assign({}, {
             session: sessionId,
@@ -244,7 +250,20 @@ let activityLogger = {
         });
         sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
-
+    logPanelPositions() {
+        let entry = Object.assign({}, {
+            session: sessionId,
+            sequenceId: (this.sequenceId += 1),
+            epochms: Date.now(),
+            activity: 'panelPositioning'
+        }, {});
+        entry.panels = this.calculatePanelPositions()
+        this.debug_log(entry);
+        this.worker.postMessage({
+            log: [entry]
+        });
+        sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
+    },
     log: function (activity, properties) {
         let entry = Object.assign({}, {
             session: sessionId,

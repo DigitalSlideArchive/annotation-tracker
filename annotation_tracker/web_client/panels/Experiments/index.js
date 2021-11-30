@@ -38,7 +38,7 @@ const Experiments = Panel.extend({
         this.resizeObservers = [];
         $('.s-panel').each((_index, element) => {
             const observer = new ResizeObserver((data) => {
-                activityLogger.logPanelPositions();        
+                activityLogger.logPanelPositions();
             });
             observer.observe(element);
             this.resizeObservers.push([observer, element]);
@@ -47,7 +47,7 @@ const Experiments = Panel.extend({
     unobservePanels() {
         this.resizeObservers.forEach(([observer, element]) => {
             observer.unobserve(element);
-        })
+        });
     },
     setFolderId(folderId) {
         // fetch the metadata from the FolderID
@@ -75,6 +75,9 @@ const Experiments = Panel.extend({
     setKeyboardShortcuts() {
         const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
         $(document).on('keydown', (evt) => {
+            if ($(evt.target).closest('input').length) {
+                return;
+            }
             if (evt.key === 'Escape') {
                 this.stopSession();
                 evt.preventDefault();

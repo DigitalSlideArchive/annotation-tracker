@@ -41,7 +41,7 @@ setup(
         'large_image[nd2,ometiff,openjpeg,openslide,pil,tiff,deepzoom,bioformats]',
         'large-image-converter',
         'large-image-tasks',
-        'celery<5',
+        'celery',
         'urllib3',
     ],
     license='Apache Software License 2.0',

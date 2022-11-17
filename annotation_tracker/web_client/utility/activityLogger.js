@@ -172,7 +172,7 @@ let activityLogger = {
         sessionStorage.setItem('annotation_tracker.sequenceId.' + sessionId, this.sequenceId);
     },
     calculatePanelPositions() {
-        let loggedPanels = []
+        let loggedPanels = [];
         if (this._view) {
             const panels = this._view.$el.find('.s-panel-group>div:visible');
             loggedPanels = panels.toArray().map((panel) => {
@@ -192,7 +192,6 @@ let activityLogger = {
                 let firstpanel = elem.children('div:visible:first');
                 if (elem.width() - firstpanel.width() > 10) {
                     let offset = elem.offset();
-                    console.log(firstpanel.offset().left, offset.left, firstpanel.outerWidth());
                     let fpwidth = firstpanel.offset().left - offset.left + firstpanel.outerWidth();
                     // the width may not actually be quite right
                     loggedPanels.push({
@@ -257,7 +256,7 @@ let activityLogger = {
             epochms: Date.now(),
             activity: 'panelPositioning'
         }, {});
-        entry.panels = this.calculatePanelPositions()
+        entry.panels = this.calculatePanelPositions();
         this.debug_log(entry);
         this.worker.postMessage({
             log: [entry]

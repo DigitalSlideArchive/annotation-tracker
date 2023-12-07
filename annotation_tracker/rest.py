@@ -1,9 +1,17 @@
+from bson.objectid import ObjectId
 from girder.api import access
 from girder.constants import TokenScope, SortDir
-from girder.api.rest import Resource
+from girder.api.rest import Resource, setRawResponse, setResponseHeader
 from girder.api.describe import autoDescribeRoute, Description
 
 from .models import Activity
+
+from girder_large_image.models.image_item import ImageItem
+
+from PIL import Image
+import io
+import numpy as np
+from math import floor, ceil
 
 
 class AnnotationTrackerResource(Resource):
@@ -13,6 +21,7 @@ class AnnotationTrackerResource(Resource):
 
         self.route('POST', ('log', ), self.logActivity)
         self.route('GET', (), self.find)
+        self.route('GET', ('pan_history', ), self.pan_history)
 
     @autoDescribeRoute(
         Description('Log activity to the database.')
@@ -88,3 +97,69 @@ class AnnotationTrackerResource(Resource):
         if activity:
             query['activity'] = activity
         return Activity().find(query, offset=offset, limit=limit, sort=sort)
+
+    @access.admin(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description('Generate image thumbnail displaying HistomicsUI panning history.')
+        .param('sessionId', 'A session id', required=True)
+        .param('imageId', 'Image\'s item id', required=True)
+        .param('maxSize', 'Maximum size of the thumbnail image dimension',
+               dataType='integer', default=512, required=False)
+        .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
+        .errorResponse()
+    )
+    def pan_history(self, sessionId, imageId, maxSize, limit, offset, sort):
+        query = {
+            'session': sessionId,      # sessionId probably isn't unique enough for what we want
+            'currentImage': imageId,
+            'activity': 'pan',
+            'zoom': {'$type': 'int'},  # this can break when window is too large for low zooms, it'll be an arbitrary float
+        }
+        events = Activity().find(query, offset=offset, limit=limit, sort=sort)
+        if events.count() == 0:
+            return None
+
+        image = ImageItem().findOne({'_id': ObjectId(imageId)})
+        item = ImageItem().getMetadata(image)
+        if not item or 'sizeX' not in item:
+            return None
+
+        # TODO: getRegion
+        # get thumbnail
+        result = ImageItem().getThumbnail(image, checkAndCreate=False,
+                                          width=maxSize, height=maxSize, encoding='PNG')
+        imageData, imageMime = result
+
+        source = Image.open(io.BytesIO(imageData))
+        width, height = source.size
+        scale = width / item['sizeX']
+        source.save('../annotation-tracker/image.png')
+
+        # create mask
+        background_opacity = 0.3
+        mask = np.zeros((height, width), dtype=np.uint8)
+        mask.fill(int(background_opacity * 255))
+
+        for e in events:
+            visibleArea = e['visibleArea']
+            min_x, max_x = floor(scale * visibleArea['tl']['x']), ceil(scale * visibleArea['br']['x'])
+            min_y, max_y = floor(scale * visibleArea['tl']['y']), ceil(scale * visibleArea['br']['y'])
+
+            min_x, max_x = max(min_x, 0), min(max_x, width)
+            min_y, max_y = max(min_y, 0), min(max_y, height)
+
+            mask[min_y:max_y, min_x:max_x] = 255
+
+        # apply mask
+        mask_image = Image.fromarray(mask)
+        mask_image.save('../annotation-tracker/mask.png')
+
+        masked_source = Image.composite(source, mask_image, mask_image)
+        masked_source.save('../annotation-tracker/masked.png')
+
+        masked_bytes = io.BytesIO()
+        masked_source.save(masked_bytes, format='PNG')
+
+        setResponseHeader('Content-Type', 'image/png')
+        setRawResponse()
+        return masked_bytes.getvalue()

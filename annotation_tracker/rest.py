@@ -7,6 +7,7 @@ from girder.api.describe import autoDescribeRoute, Description
 from .models import Activity
 
 from girder_large_image.models.image_item import ImageItem
+import large_image
 
 from PIL import Image
 import io
@@ -22,6 +23,7 @@ class AnnotationTrackerResource(Resource):
         self.route('POST', ('log', ), self.logActivity)
         self.route('GET', (), self.find)
         self.route('GET', ('pan_history', ), self.pan_history)
+        self.route('GET', ('pan_history_json', ), self.pan_history_json)
 
     @autoDescribeRoute(
         Description('Log activity to the database.')
@@ -98,68 +100,109 @@ class AnnotationTrackerResource(Resource):
             query['activity'] = activity
         return Activity().find(query, offset=offset, limit=limit, sort=sort)
 
-    @access.admin(scope=TokenScope.DATA_READ)
-    @autoDescribeRoute(
-        Description('Generate image thumbnail displaying HistomicsUI panning history.')
-        .param('sessionId', 'A session id', required=True)
-        .param('imageId', 'Image\'s item id', required=True)
-        .param('maxSize', 'Maximum size of the thumbnail image dimension',
-               dataType='integer', default=512, required=False)
-        .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
-        .errorResponse()
-    )
-    def pan_history(self, sessionId, imageId, maxSize, limit, offset, sort):
+    def activity_rois(self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort):
+        """Get a list of pan events for a given image and time range."""
         query = {
-            'session': sessionId,      # sessionId probably isn't unique enough for what we want
             'currentImage': imageId,
+            'epochms': {'$gte': startTime, '$lte': endTime},
             'activity': 'pan',
-            'zoom': {'$type': 'int'},  # this can break when window is too large for low zooms, it'll be an arbitrary float
         }
-        events = Activity().find(query, offset=offset, limit=limit, sort=sort)
+        events = Activity().find(query, offset=offset, limit=limit, sort=sort, fields=['epochms', 'visibleArea', 'zoom'])
         if events.count() == 0:
             return None
 
-        image = ImageItem().findOne({'_id': ObjectId(imageId)})
-        item = ImageItem().getMetadata(image)
-        if not item or 'sizeX' not in item:
+        # filter out events that are not close to an integer zoom
+        def zoom_threshold(zoom):
+            return abs(zoom - round(zoom)) < zoomThreshold
+        events = [e for e in events if zoom_threshold(e['zoom'])]
+
+        return events
+
+    @access.admin(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description('Generate image thumbnail displaying HistomicsUI panning history.')
+        .param('imageId', 'Image\'s item id', required=True)
+        .param('startTime', 'Start of timeframe to examine (epochms)', dataType='integer', required=True)
+        .param('endTime', 'End of timeframe to examine (epochms)', dataType='integer', required=True)
+        .param('zoomThreshold', 'Maximum distance zoom variable can be from an interger', dataType='float', default='0.001', required=False)
+        .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
+        .errorResponse()
+    )
+    def pan_history(self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort):
+        events = self.activity_rois(imageId, startTime, endTime, zoomThreshold, limit, offset, sort)
+        if not events:
             return None
 
-        # TODO: getRegion
-        # get thumbnail
-        result = ImageItem().getThumbnail(image, checkAndCreate=False,
-                                          width=maxSize, height=maxSize, encoding='PNG')
-        imageData, imageMime = result
+        image = ImageItem().findOne({'_id': ObjectId(imageId)})
+        meta = ImageItem().getMetadata(image)
+        if not meta or 'sizeX' not in meta:
+            return None
 
-        source = Image.open(io.BytesIO(imageData))
-        width, height = source.size
-        scale = width / item['sizeX']
-        source.save('../annotation-tracker/image.png')
-
-        # create mask
-        background_opacity = 0.3
-        mask = np.zeros((height, width), dtype=np.uint8)
-        mask.fill(int(background_opacity * 255))
+        dest = large_image.new()
+        scales = {}
 
         for e in events:
-            visibleArea = e['visibleArea']
-            min_x, max_x = floor(scale * visibleArea['tl']['x']), ceil(scale * visibleArea['br']['x'])
-            min_y, max_y = floor(scale * visibleArea['tl']['y']), ceil(scale * visibleArea['br']['y'])
+            tl = e['visibleArea']['tl']
+            br = e['visibleArea']['br']
 
-            min_x, max_x = max(min_x, 0), min(max_x, width)
-            min_y, max_y = max(min_y, 0), min(max_y, height)
+            # assuming that we know the image size and can zero-out negative values
+            min_x, max_x = max(floor(tl['x']), 0), max(ceil(br['x']), 0)
+            min_y, max_y = max(floor(tl['y']), 0), max(ceil(br['y']), 0)
 
-            mask[min_y:max_y, min_x:max_x] = 255
+            zoom = e['zoom']
+            if zoom not in scales:
+                scales[zoom] = {
+                    'region': {'left': min_x, 'right': max_x, 'top': min_y, 'bottom': max_y},
+                    'mask': np.zeros((meta['sizeY'], meta['sizeX']), dtype='uint8')
+                }
+            else:
+                region = scales[zoom]['region']
+                scales[zoom]['region']['left']   = min(min_x, region['left'])
+                scales[zoom]['region']['right']  = max(max_x, region['right'])
+                scales[zoom]['region']['top']    = min(min_y, region['top'])
+                scales[zoom]['region']['bottom'] = max(max_y, region['bottom'])
 
-        # apply mask
-        mask_image = Image.fromarray(mask)
-        mask_image.save('../annotation-tracker/mask.png')
+            # set the mask for this region
+            scales[zoom]['mask'][min_y:max_y, min_x:max_x] = 1
 
-        masked_source = Image.composite(source, mask_image, mask_image)
-        masked_source.save('../annotation-tracker/masked.png')
+        for zoom in sorted(scales.keys()):
+            item = scales[zoom]
+            region = item['region']
 
-        masked_bytes = io.BytesIO()
-        masked_source.save(masked_bytes, format='PNG')
+            # assuming that the default scaling for the image is 20x (on zoom=4)
+            effective_mag = (meta.get('magnification', 20) / 2**4) * (2 ** zoom)
 
-        setResponseHeader('Content-Type', 'image/png')
+            nparray, mime_type = ImageItem().getRegion(
+                image,
+                region=region,
+                resample=Image.Resampling.NEAREST,
+                scale={'magnification': effective_mag},
+                format=large_image.constants.TILE_FORMAT_NUMPY,
+            )
+
+            upscale_factor = 2 ** (meta['levels'] - 1 - zoom)
+            nparray = nparray.repeat(upscale_factor, axis=0).repeat(upscale_factor, axis=1)
+
+            mask = item['mask'][region['top']:region['bottom'], region['left']:region['right']]
+            mask = mask.copy() # copy to avoid modifying the original in resize
+            mask.resize(nparray.shape[:2])
+
+            dest.addTile(nparray, x=region['left'], y=region['top'], mask=mask)
+
+        data, mime = dest.getRegion()
+        setResponseHeader('Content-Type', mime)
         setRawResponse()
-        return masked_bytes.getvalue()
+        return data
+
+    @access.admin(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description('Return JSON list of ROI bounding boxes for given image/timeframe.')
+        .param('imageId', 'Image\'s item id', required=True)
+        .param('startTime', 'Start of timeframe to examine (epochms)', dataType='integer', required=True)
+        .param('endTime', 'End of timeframe to examine (epochms)', dataType='integer', required=True)
+        .param('zoomThreshold', 'Maximum distance zoom variable can be from an interger', dataType='float', default='0.001', required=False)
+        .pagingParams(defaultSort='epochms', defaultSortDir=SortDir.DESCENDING)
+        .errorResponse()
+    )
+    def pan_history_json(self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort):
+        return self.activity_rois(imageId, startTime, endTime, zoomThreshold, limit, offset, sort)

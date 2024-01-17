@@ -104,6 +104,60 @@ class AnnotationTrackerResource(Resource):
             query["activity"] = activity
         return Activity().find(query, offset=offset, limit=limit, sort=sort)
 
+    def overlap_th(self, roi, rois, threshold=0.95):
+        # assuming roi and rois are uniformly sized
+        # rois being the list of rois used until this point
+
+        if len(rois) == 0:
+            return True
+
+        def overlap_area(a, b):
+            return max(0, min(a['right'], b['right']) - max(a['left'], b['left'])) * \
+                   max(0, min(a['bottom'], b['bottom']) - max(a['top'], b['top']))
+
+        # find the most overlapping roi so far
+        max_overlap = 0
+        for r in rois:
+            area = overlap_area(roi, r)
+            if area > max_overlap:
+                max_overlap = area
+
+        roi_area = (roi['left'] - roi['right']) * (roi['top'] - roi['bottom'])
+
+        # if the max overlap proportion is less than the minimum threshold, we can add this roi
+        return (max_overlap / roi_area) < threshold
+
+    def spatial_downsample(self, events, threshold=0.95):
+        scales = {}
+
+        for e in events:
+            tl = e["visibleArea"]["tl"]
+            br = e["visibleArea"]["br"]
+
+            roi = {'top': tl['y'], 'left': tl['x'], 'bottom': br['y'], 'right': br['x']}
+            roi = {k: max(0, int(v)) for k, v in roi.items()}  # clamp pixels to be greater than 0
+                                                               # this is needed for getRegion
+            roi['epochms'] = e['epochms']
+
+            zoom = e["zoom"]
+            # TODO: zooms are still not necessarily the same if they meet the zoom_threshold -> make sure to pool the correct ones together
+            if zoom not in scales:
+                scales[zoom] = {'rois': [roi]}
+            else:
+                scales[zoom]['rois'].append(roi)
+
+        for zoom, regions in scales.items():
+            regions = regions['rois']
+
+            accepted_regions = []
+            for roi in regions:
+                if self.overlap_th(roi, accepted_regions, threshold=threshold):
+                    accepted_regions.append(roi)
+
+            scales[zoom]['accepted_regions'] = accepted_regions
+
+        return scales
+
     def activity_rois(
         self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort
     ):
@@ -154,11 +208,18 @@ class AnnotationTrackerResource(Resource):
             default="0.001",
             required=False,
         )
+        .param(
+            "areaThreshold",
+            "Minimum ratio of (rectangle area overlap / rectangle area) before resampling occurs",
+            dataType="float",
+            default="0.95",
+            required=False,
+        )
         .pagingParams(defaultSort="epochms", defaultSortDir=SortDir.DESCENDING)
         .errorResponse()
     )
     def pan_history(
-        self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort
+        self, imageId, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
     ):
         events = self.activity_rois(
             imageId, startTime, endTime, zoomThreshold, limit, offset, sort
@@ -171,67 +232,70 @@ class AnnotationTrackerResource(Resource):
         if not meta or "sizeX" not in meta:
             return None
 
-        dest = large_image.new()
-        scales = {}
+        # collect roi's based on spatial downsampling
+        scales = self.spatial_downsample(events, threshold=areaThreshold)
 
-        for e in events:
-            tl = e["visibleArea"]["tl"]
-            br = e["visibleArea"]["br"]
+        origin = None
+        composite = large_image.new()
 
-            # assuming that we know the image size and can zero-out negative values
-            min_x, max_x = max(floor(tl["x"]), 0), max(ceil(br["x"]), 0)
-            min_y, max_y = max(floor(tl["y"]), 0), max(ceil(br["y"]), 0)
-
-            zoom = e["zoom"]
-            if zoom not in scales:
-                scales[zoom] = {
-                    "region": {
-                        "left": min_x,
-                        "right": max_x,
-                        "top": min_y,
-                        "bottom": max_y,
-                    },
-                    "mask": np.zeros((meta["sizeY"], meta["sizeX"]), dtype="uint8"),
-                }
-            else:
-                region = scales[zoom]["region"]
-                scales[zoom]["region"]["left"] = min(min_x, region["left"])
-                scales[zoom]["region"]["right"] = max(max_x, region["right"])
-                scales[zoom]["region"]["top"] = min(min_y, region["top"])
-                scales[zoom]["region"]["bottom"] = max(max_y, region["bottom"])
-
-            # set the mask for this region
-            scales[zoom]["mask"][min_y:max_y, min_x:max_x] = 1
-
-        for zoom in sorted(scales.keys()):
-            item = scales[zoom]
-            region = item["region"]
-
-            # assuming that the default scaling for the image is 20x (on zoom=4)
-            effective_mag = (meta.get("magnification", 20) / 2**4) * (2**zoom)
-
-            nparray, mime_type = ImageItem().getRegion(
-                image,
-                region=region,
-                resample=Image.Resampling.NEAREST,
-                scale={"magnification": effective_mag},
-                format=large_image.constants.TILE_FORMAT_NUMPY,
-            )
-
+        for zoom, data in scales.items():
+            # assuming that the default scaling for the image is 20x (on zoom==meta["levels"]-1) if otherwise unspecified by image metadata
+            # TODO: remove this assumption... (meta['magnification'] might always be set?)
             upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
-            nparray = nparray.repeat(upscale_factor, axis=0).repeat(
-                upscale_factor, axis=1
-            )
+            effective_mag = meta.get("magnification", 20) / upscale_factor
 
-            mask = item["mask"][
-                region["top"] : region["bottom"], region["left"] : region["right"]
-            ]
-            mask = mask.copy()  # copy to avoid modifying the original in resize
-            mask.resize(nparray.shape[:2])
+            bounds = None
+            scale_image = large_image.new()
 
-            dest.addTile(nparray, x=region["left"], y=region["top"], mask=mask)
+            for region in data['accepted_regions']:
+                if origin is None:
+                    center_x = (region['left'] + region['right']) // 2
+                    center_y = (region['top'] + region['bottom']) // 2
+                    origin = {
+                        'top':    center_y,
+                        'bottom': center_y,
+                        'left':   center_x,
+                        'right':  center_x,
+                    }
 
-        data, mime = dest.getRegion()
+                # get pixel data for roi at given magnification
+                nparray, mime = ImageItem().getRegion(
+                    image,
+                    region=region,
+                    resample=Image.Resampling.NEAREST,
+                    scale={"magnification": effective_mag},
+                    format=large_image.constants.TILE_FORMAT_NUMPY,
+                )
+
+                # translate region by the origin
+                translated = {k: region[k] - origin[k] for k in origin.keys()}
+
+                # track the bounds of the scale_image w.r.t. the origin
+                if bounds is None:
+                    bounds = translated
+                bounds = {
+                    'top':  min(bounds['top'], translated['top']),
+                    'left': min(bounds['left'], translated['left']),
+                }
+
+                # translate to scale_image coordinates via the upscale_factor
+                x = translated['left'] // upscale_factor
+                y = translated['top']  // upscale_factor
+                scale_image.addTile(nparray, x=x, y=y)
+
+            # get raw scale_image for composition
+            nparray, mime = scale_image.getRegion(format=large_image.constants.TILE_FORMAT_NUMPY)
+
+            # TODO: remove this visualization
+            if zoom == 3:
+                nparray //= 4
+                nparray *= 3
+
+            # upscale scale_image region w.r.t. upscale_factor
+            nparray = nparray.repeat(upscale_factor, axis=0).repeat(upscale_factor, axis=1)
+            composite.addTile(nparray, x=bounds['left'], y=bounds['top'])
+
+        data, mime = composite.getRegion(encoding='PNG')
         setResponseHeader("Content-Type", mime)
         setRawResponse()
         return data
@@ -259,12 +323,18 @@ class AnnotationTrackerResource(Resource):
             default="0.001",
             required=False,
         )
+        .param(
+            "areaThreshold",
+            "Minimum ratio of (rectangle area overlap / rectangle area) before resampling occurs",
+            dataType="float",
+            default="0.95",
+            required=False,
+        )
         .pagingParams(defaultSort="epochms", defaultSortDir=SortDir.DESCENDING)
         .errorResponse()
     )
     def pan_history_json(
-        self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort
+        self, imageId, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
     ):
-        return self.activity_rois(
-            imageId, startTime, endTime, zoomThreshold, limit, offset, sort
-        )
+        events = self.activity_rois(imageId, startTime, endTime, zoomThreshold, limit, offset, sort)
+        return self.spatial_downsample(events, threshold=areaThreshold)

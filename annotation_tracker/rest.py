@@ -1,6 +1,8 @@
-from math import ceil, floor
+import json
 
 import large_image
+import large_image_source_multi
+
 import numpy as np
 from bson.objectid import ObjectId
 from girder.api import access
@@ -146,7 +148,8 @@ class AnnotationTrackerResource(Resource):
             else:
                 scales[zoom]['rois'].append(roi)
 
-        for zoom, regions in scales.items():
+        # from pprint import pprint
+        for zoom, regions in sorted(scales.items()):
             regions = regions['rois']
 
             accepted_regions = []
@@ -236,9 +239,13 @@ class AnnotationTrackerResource(Resource):
         scales = self.spatial_downsample(events, threshold=areaThreshold)
 
         origin = None
-        composite = large_image.new()
+        bounds_list = {}
 
-        for zoom, data in scales.items():
+        for zoom, data in sorted(scales.items()):
+            # discard roi's with scale larger than limit
+            if zoom >= meta['levels']:
+                continue
+
             # assuming that the default scaling for the image is 20x (on zoom==meta["levels"]-1) if otherwise unspecified by image metadata
             # TODO: remove this assumption... (meta['magnification'] might always be set?)
             upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
@@ -283,17 +290,31 @@ class AnnotationTrackerResource(Resource):
                 y = translated['top']  // upscale_factor
                 scale_image.addTile(nparray, x=x, y=y)
 
-            # get raw scale_image for composition
-            nparray, mime = scale_image.getRegion(format=large_image.constants.TILE_FORMAT_NUMPY)
+            bounds_list[zoom] = bounds
+            scale_image.write(f'./img_zoom{zoom}.tiff', lossy=False)
 
-            # TODO: remove this visualization
-            if zoom == 3:
-                nparray //= 4
-                nparray *= 3
+        # TODO: refactor things in terms of np arrays (for min along axis in this case)
+        min_x, min_y = bounds['left'], bounds['top']
+        for b in bounds_list.values():
+            min_x = min(min_x, b['left'])
+            min_y = min(min_y, b['top'])
 
-            # upscale scale_image region w.r.t. upscale_factor
-            nparray = nparray.repeat(upscale_factor, axis=0).repeat(upscale_factor, axis=1)
-            composite.addTile(nparray, x=bounds['left'], y=bounds['top'])
+        # TODO: sometimes files are cached here, might need to refresh
+        sources = []
+        for zoom in sorted(bounds_list.keys()):
+            upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
+            bounds = bounds_list[zoom]
+            sources.append({
+                'path': f'./img_zoom{zoom}.tiff',
+                'z': 0,
+                'position': {
+                    'x': bounds["left"] - min_x,
+                    'y': bounds["top"] - min_y,
+                    'scale': upscale_factor,
+                },
+            })
+
+        composite = large_image_source_multi.open(json.dumps({'sources': sources}))
 
         data, mime = composite.getRegion(encoding='PNG')
         setResponseHeader("Content-Type", mime)

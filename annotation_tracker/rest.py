@@ -1,14 +1,16 @@
-import json
+import os
+import tempfile
 
 import large_image
-import large_image_source_multi
-
 import numpy as np
+import yaml
 from bson.objectid import ObjectId
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, setRawResponse, setResponseHeader
+from girder.api.rest import Resource
 from girder.constants import SortDir, TokenScope
+from girder.models.folder import Folder
+from girder.models.upload import Upload
 from girder_large_image.models.image_item import ImageItem
 from PIL import Image
 
@@ -124,7 +126,7 @@ class AnnotationTrackerResource(Resource):
             if area > max_overlap:
                 max_overlap = area
 
-        roi_area = (roi['left'] - roi['right']) * (roi['top'] - roi['bottom'])
+        roi_area = (roi["left"] - roi["right"]) * (roi["top"] - roi["bottom"])
 
         # if the max overlap proportion is less than the minimum threshold, we can add this roi
         return (max_overlap / roi_area) < threshold
@@ -136,28 +138,27 @@ class AnnotationTrackerResource(Resource):
             tl = e["visibleArea"]["tl"]
             br = e["visibleArea"]["br"]
 
-            roi = {'top': tl['y'], 'left': tl['x'], 'bottom': br['y'], 'right': br['x']}
+            roi = {"top": tl["y"], "left": tl["x"], "bottom": br["y"], "right": br["x"]}
             roi = {k: max(0, int(v)) for k, v in roi.items()}  # clamp pixels to be greater than 0
-                                                               # this is needed for getRegion
-            roi['epochms'] = e['epochms']
+            # this is needed for getRegion
+            roi["epochms"] = e["epochms"]
 
             zoom = e["zoom"]
             # TODO: zooms are still not necessarily the same if they meet the zoom_threshold -> make sure to pool the correct ones together
             if zoom not in scales:
-                scales[zoom] = {'rois': [roi]}
+                scales[zoom] = {"rois": [roi]}
             else:
-                scales[zoom]['rois'].append(roi)
+                scales[zoom]["rois"].append(roi)
 
-        # from pprint import pprint
         for zoom, regions in sorted(scales.items()):
-            regions = regions['rois']
+            regions = regions["rois"]
 
             accepted_regions = []
             for roi in regions:
                 if self.overlap_th(roi, accepted_regions, threshold=threshold):
                     accepted_regions.append(roi)
 
-            scales[zoom]['accepted_regions'] = accepted_regions
+            scales[zoom]["accepted_regions"] = accepted_regions
 
         return scales
 
@@ -192,6 +193,7 @@ class AnnotationTrackerResource(Resource):
     @autoDescribeRoute(
         Description("Generate image thumbnail displaying HistomicsUI panning history.")
         .param("imageId", "Image's item id", required=True)
+        .param("destFolder", "Destination folder id", required=True)
         .param(
             "startTime",
             "Start of timeframe to examine (epochms)",
@@ -222,7 +224,7 @@ class AnnotationTrackerResource(Resource):
         .errorResponse()
     )
     def pan_history(
-        self, imageId, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
+        self, imageId, destFolder, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
     ):
         events = self.activity_rois(
             imageId, startTime, endTime, zoomThreshold, limit, offset, sort
@@ -230,96 +232,119 @@ class AnnotationTrackerResource(Resource):
         if not events:
             return None
 
+        user = self.getCurrentUser()
+        folder = Folder().load(destFolder, user=user)
+
         image = ImageItem().findOne({"_id": ObjectId(imageId)})
         meta = ImageItem().getMetadata(image)
         if not meta or "sizeX" not in meta:
             return None
+        image_name = os.path.splitext(image["name"])[0]  # filename without extension
 
         # collect roi's based on spatial downsampling
         scales = self.spatial_downsample(events, threshold=areaThreshold)
 
         origin = None
-        bounds_list = {}
+        min_xys = {}
 
-        for zoom, data in sorted(scales.items()):
-            # discard roi's with scale larger than limit
-            if zoom >= meta['levels']:
-                continue
+        with tempfile.TemporaryDirectory() as tempdir:
+            for zoom, data in sorted(scales.items()):
+                # discard roi's with scale larger than limit
+                if zoom >= meta["levels"]:
+                    continue
 
-            # assuming that the default scaling for the image is 20x (on zoom==meta["levels"]-1) if otherwise unspecified by image metadata
-            # TODO: remove this assumption... (meta['magnification'] might always be set?)
-            upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
-            effective_mag = meta.get("magnification", 20) / upscale_factor
+                # assuming that the default scaling for the image is 20x (on zoom==meta["levels"]-1)
+                upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
+                effective_mag = meta.get("magnification", 20) / upscale_factor
 
-            bounds = None
-            scale_image = large_image.new()
+                min_xy = None
+                scale_image = large_image.new()
 
-            for region in data['accepted_regions']:
-                if origin is None:
-                    center_x = (region['left'] + region['right']) // 2
-                    center_y = (region['top'] + region['bottom']) // 2
-                    origin = {
-                        'top':    center_y,
-                        'bottom': center_y,
-                        'left':   center_x,
-                        'right':  center_x,
+                for region in data["accepted_regions"]:
+                    if origin is None:
+                        center_x = (region["left"] + region["right"]) // 2
+                        center_y = (region["top"] + region["bottom"]) // 2
+                        origin = np.array([center_x, center_y])
+
+                    # get pixel data for roi at given magnification
+                    nparray, mime = ImageItem().getRegion(
+                        image,
+                        region=region,
+                        resample=Image.Resampling.NEAREST,
+                        scale={"magnification": effective_mag},
+                        format=large_image.constants.TILE_FORMAT_NUMPY,
+                    )
+
+                    region = np.array([region["left"], region["top"]])
+                    translated = region - origin
+
+                    # track the bounds of the scale_image w.r.t. the origin
+                    if min_xy is None:
+                        min_xy = translated
+                    min_xy = np.min([min_xy, translated], axis=0)
+
+                    # transform to scale_image coordinates via the upscale_factor
+                    translated //= upscale_factor
+                    scale_image.addTile(nparray, x=translated[0], y=translated[1])
+
+                min_xys[zoom] = min_xy
+
+                file_name = f"zoom_{zoom}_{image_name}.tiff"
+                file_path = os.path.join(tempdir, file_name)
+                scale_image.write(file_path, lossy=False)
+
+                # add the file to girder instance
+                with open(file_path, "rb") as scale_image_file:
+                    Upload().uploadFromFile(
+                        scale_image_file,
+                        os.path.getsize(file_path),
+                        file_name,
+                        parentType="folder",
+                        parent=folder,
+                        user=user,
+                    )
+
+            # get the minimum x & y across all scales
+            global_min_xy = np.min(np.array(list(min_xys.values())), axis=0)
+
+            source_list = []
+            for zoom in sorted(min_xys.keys()):
+                upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
+                position = min_xys[zoom] - global_min_xy
+
+                source_list.append(
+                    {
+                        "path": f"./zoom_{zoom}_{image_name}.tiff",
+                        "z": 0,
+                        "position": {
+                            "x": int(position[0]),
+                            "y": int(position[1]),
+                            "scale": upscale_factor,
+                        },
+                        # # TODO: including band styles for multiple sources in the same tile can break compositing
+                        # 'params': {'style': {'bands': [
+                        #     {'palette': '#f00', 'band': 1},
+                        #     {'palette': '#0f0', 'band': 2},
+                        #     {'palette': '#00f', 'band': 3},
+                        # ]}}
                     }
-
-                # get pixel data for roi at given magnification
-                nparray, mime = ImageItem().getRegion(
-                    image,
-                    region=region,
-                    resample=Image.Resampling.NEAREST,
-                    scale={"magnification": effective_mag},
-                    format=large_image.constants.TILE_FORMAT_NUMPY,
                 )
 
-                # translate region by the origin
-                translated = {k: region[k] - origin[k] for k in origin.keys()}
+            file_name = f"composite_{image_name}.yml"
+            file_path = os.path.join(tempdir, file_name)
 
-                # track the bounds of the scale_image w.r.t. the origin
-                if bounds is None:
-                    bounds = translated
-                bounds = {
-                    'top':  min(bounds['top'], translated['top']),
-                    'left': min(bounds['left'], translated['left']),
-                }
+            with open(file_path, "w") as yml_file:
+                yml_file.write(f'---\n{yaml.dump({"sources": source_list})}')
 
-                # translate to scale_image coordinates via the upscale_factor
-                x = translated['left'] // upscale_factor
-                y = translated['top']  // upscale_factor
-                scale_image.addTile(nparray, x=x, y=y)
-
-            bounds_list[zoom] = bounds
-            scale_image.write(f'./img_zoom{zoom}.tiff', lossy=False)
-
-        # TODO: refactor things in terms of np arrays (for min along axis in this case)
-        min_x, min_y = bounds['left'], bounds['top']
-        for b in bounds_list.values():
-            min_x = min(min_x, b['left'])
-            min_y = min(min_y, b['top'])
-
-        # TODO: sometimes files are cached here, might need to refresh
-        sources = []
-        for zoom in sorted(bounds_list.keys()):
-            upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
-            bounds = bounds_list[zoom]
-            sources.append({
-                'path': f'./img_zoom{zoom}.tiff',
-                'z': 0,
-                'position': {
-                    'x': bounds["left"] - min_x,
-                    'y': bounds["top"] - min_y,
-                    'scale': upscale_factor,
-                },
-            })
-
-        composite = large_image_source_multi.open(json.dumps({'sources': sources}))
-
-        data, mime = composite.getRegion(encoding='PNG')
-        setResponseHeader("Content-Type", mime)
-        setRawResponse()
-        return data
+            with open(file_path, "rb") as yml_file:
+                return Upload().uploadFromFile(
+                    yml_file,
+                    os.path.getsize(file_path),
+                    file_name,
+                    parentType="folder",
+                    parent=folder,
+                    user=user,
+                )
 
     @access.admin(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(

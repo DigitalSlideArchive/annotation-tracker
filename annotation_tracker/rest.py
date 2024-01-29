@@ -219,7 +219,7 @@ class AnnotationTrackerResource(Resource):
         )
         .param(
             "areaThreshold",
-            "Minimum ratio of (rectangle area overlap / rectangle area) before resampling occurs",
+            "Used in spatial ROI downsampling. Minimum ratio of (ROI rectangle area overlap / rectangle area) before resample occurs",
             dataType="float",
             default="0.95",
             required=False,

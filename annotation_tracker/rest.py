@@ -140,11 +140,10 @@ class AnnotationTrackerResource(Resource):
 
             roi = {"top": tl["y"], "left": tl["x"], "bottom": br["y"], "right": br["x"]}
             roi = {k: max(0, int(v)) for k, v in roi.items()}  # clamp pixels to be greater than 0
-            # this is needed for getRegion
+                                                               # this is needed for getRegion
             roi["epochms"] = e["epochms"]
 
-            zoom = e["zoom"]
-            # TODO: zooms are still not necessarily the same if they meet the zoom_threshold -> make sure to pool the correct ones together
+            zoom = e["rounded_zoom"]
             if zoom not in scales:
                 scales[zoom] = {"rois": [roi]}
             else:
@@ -185,7 +184,12 @@ class AnnotationTrackerResource(Resource):
         def zoom_threshold(zoom):
             return abs(zoom - round(zoom)) < zoomThreshold
 
-        events = [e for e in events if zoom_threshold(e["zoom"])]
+        # filter events based on zoom value proximity & store the rounded zoom value
+        events = [
+            {**e, "rounded_zoom": round(e["zoom"])}
+            for e in events
+            if zoom_threshold(e["zoom"])
+        ]
 
         return events
 

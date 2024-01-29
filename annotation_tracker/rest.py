@@ -162,7 +162,7 @@ class AnnotationTrackerResource(Resource):
         return scales
 
     def activity_rois(
-        self, imageId, startTime, endTime, zoomThreshold, limit, offset, sort
+        self, imageId, startTime, endTime, zoomPrecision, limit, offset, sort
     ):
         """Get a list of pan events for a given image and time range."""
         query = {
@@ -182,7 +182,7 @@ class AnnotationTrackerResource(Resource):
 
         # filter out events that are not close to an integer zoom
         def zoom_threshold(zoom):
-            return abs(zoom - round(zoom)) < zoomThreshold
+            return abs(zoom - round(zoom)) < zoomPrecision
 
         # filter events based on zoom value proximity & store the rounded zoom value
         events = [
@@ -211,8 +211,8 @@ class AnnotationTrackerResource(Resource):
             required=True,
         )
         .param(
-            "zoomThreshold",
-            "Maximum distance zoom variable can be from an interger",
+            "zoomPrecision",
+            "Maximum deviance zoom variable can be from a round interger value",
             dataType="float",
             default="0.001",
             required=False,
@@ -228,10 +228,10 @@ class AnnotationTrackerResource(Resource):
         .errorResponse()
     )
     def pan_history(
-        self, imageId, destFolder, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
+        self, imageId, destFolder, startTime, endTime, zoomPrecision, areaThreshold, limit, offset, sort
     ):
         events = self.activity_rois(
-            imageId, startTime, endTime, zoomThreshold, limit, offset, sort
+            imageId, startTime, endTime, zoomPrecision, limit, offset, sort
         )
         if not events:
             return None
@@ -367,7 +367,7 @@ class AnnotationTrackerResource(Resource):
             required=True,
         )
         .param(
-            "zoomThreshold",
+            "zoomPrecision",
             "Maximum distance zoom variable can be from an interger",
             dataType="float",
             default="0.001",
@@ -384,7 +384,7 @@ class AnnotationTrackerResource(Resource):
         .errorResponse()
     )
     def pan_history_json(
-        self, imageId, startTime, endTime, zoomThreshold, areaThreshold, limit, offset, sort
+        self, imageId, startTime, endTime, zoomPrecision, areaThreshold, limit, offset, sort
     ):
-        events = self.activity_rois(imageId, startTime, endTime, zoomThreshold, limit, offset, sort)
+        events = self.activity_rois(imageId, startTime, endTime, zoomPrecision, limit, offset, sort)
         return self.spatial_downsample(events, threshold=areaThreshold)

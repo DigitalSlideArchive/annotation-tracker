@@ -274,7 +274,6 @@ class AnnotationTrackerResource(Resource):
                     nparray, mime = ImageItem().getRegion(
                         image,
                         region=region,
-                        resample=Image.Resampling.NEAREST,
                         scale={"magnification": effective_mag},
                         format=large_image.constants.TILE_FORMAT_NUMPY,
                     )
@@ -325,12 +324,16 @@ class AnnotationTrackerResource(Resource):
                             "y": int(position[1]),
                             "scale": upscale_factor,
                         },
-                        # # TODO: including band styles for multiple sources in the same tile can break compositing
-                        # 'params': {'style': {'bands': [
-                        #     {'palette': '#f00', 'band': 1},
-                        #     {'palette': '#0f0', 'band': 2},
-                        #     {'palette': '#00f', 'band': 3},
-                        # ]}}
+                        'params': {'style': {'bands': [
+                            {'palette': '#f00', 'band': 1},
+                            {'palette': '#0f0', 'band': 2},
+                            {'palette': '#00f', 'band': 3},
+                            {
+                                'palette': ['#fff0', '#ffff'],
+                                'band': 4,
+                                'composite': 'multiply'
+                            },
+                        ]}}
                     }
                 )
 

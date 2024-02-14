@@ -12,7 +12,6 @@ from girder.constants import SortDir, TokenScope
 from girder.models.folder import Folder
 from girder.models.upload import Upload
 from girder_large_image.models.image_item import ImageItem
-from PIL import Image
 
 from .models import Activity
 
@@ -116,8 +115,8 @@ class AnnotationTrackerResource(Resource):
             return True
 
         def overlap_area(a, b):
-            return max(0, min(a['right'], b['right']) - max(a['left'], b['left'])) * \
-                   max(0, min(a['bottom'], b['bottom']) - max(a['top'], b['top']))
+            return max(0, min(a["right"], b["right"]) - max(a["left"], b["left"])) * \
+                   max(0, min(a["bottom"], b["bottom"]) - max(a["top"], b["top"]))
 
         # find the most overlapping roi so far
         max_overlap = 0
@@ -193,6 +192,101 @@ class AnnotationTrackerResource(Resource):
 
         return events
 
+    def extract_rois(
+        self,
+        imageId,
+        startTime,
+        endTime,
+        zoomPrecision,
+        areaThreshold,
+        limit,
+        offset,
+        sort,
+    ):
+        events = self.activity_rois(
+            imageId, startTime, endTime, zoomPrecision, limit, offset, sort
+        )
+        if not events:
+            return None
+
+        image = ImageItem().findOne({"_id": ObjectId(imageId)})
+        meta = ImageItem().getMetadata(image)
+        if not meta or "sizeX" not in meta:
+            return None
+
+        # collect roi's based on spatial downsampling
+        scales = self.spatial_downsample(events, threshold=areaThreshold)
+
+        origin = None
+        zoom_patches = {}
+
+        for zoom, data in sorted(scales.items()):
+            # discard roi's with scale larger than limit
+            if zoom >= meta["levels"]:
+                continue
+
+            min_xy, max_xy = None, None
+            rois = []
+
+            for region in data["accepted_regions"]:
+                if origin is None:
+                    center_x = (region["left"] + region["right"]) // 2
+                    center_y = (region["top"] + region["bottom"]) // 2
+                    origin = np.array([center_x, center_y])
+
+                region_xy = np.array([region["left"], region["top"]])
+                region_wh = np.array(
+                    [region["right"] - region["left"], region["bottom"] - region["top"]]
+                )
+                translated = region_xy - origin
+
+                # track the bounds of the scale_image w.r.t. the origin
+                if min_xy is None:
+                    min_xy = translated
+                if max_xy is None:
+                    max_xy = translated + region_wh
+
+                min_xy = np.min([min_xy, translated], axis=0)
+                max_xy = np.max([max_xy, translated + region_wh], axis=0)
+
+                # store the roi info
+                rois.append(
+                    {
+                        "left": translated[0],
+                        "top": translated[1],
+                        "width": region_wh[0],
+                        "height": region_wh[1],
+                        # metadata
+                        "zoom": zoom,
+                        "epochms": region["epochms"],
+                    }
+                )
+
+            zoom_patches[zoom] = {
+                "min_xy": min_xy,
+                "max_xy": max_xy,
+                # data we care about logging
+                "left": min_xy[0],
+                "top": min_xy[1],
+                "width": max_xy[0] - min_xy[0],
+                "height": max_xy[1] - min_xy[1],
+                "rois": rois,
+            }
+
+        # get the max/min x & y across all levels
+        global_min = np.min([lvl["min_xy"] for lvl in zoom_patches.values()], axis=0)
+        global_max = np.max([lvl["max_xy"] for lvl in zoom_patches.values()], axis=0)
+
+        panned_area = {
+            "left": global_min[0],
+            "top": global_min[1],
+            "width": global_max[0] - global_min[0],
+            "height": global_max[1] - global_min[1],
+            "origin": origin,
+            "zoom_patches": zoom_patches,
+        }
+        return panned_area
+
     @access.admin(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Generate image thumbnail displaying HistomicsUI panning history.")
@@ -228,12 +322,28 @@ class AnnotationTrackerResource(Resource):
         .errorResponse()
     )
     def pan_history(
-        self, imageId, destFolder, startTime, endTime, zoomPrecision, areaThreshold, limit, offset, sort
+        self,
+        imageId,
+        destFolder,
+        startTime,
+        endTime,
+        zoomPrecision,
+        areaThreshold,
+        limit,
+        offset,
+        sort,
     ):
-        events = self.activity_rois(
-            imageId, startTime, endTime, zoomPrecision, limit, offset, sort
+        pan_data = self.extract_rois(
+            imageId,
+            startTime,
+            endTime,
+            zoomPrecision,
+            areaThreshold,
+            limit,
+            offset,
+            sort,
         )
-        if not events:
+        if not pan_data:
             return None
 
         user = self.getCurrentUser()
@@ -243,55 +353,41 @@ class AnnotationTrackerResource(Resource):
         meta = ImageItem().getMetadata(image)
         if not meta or "sizeX" not in meta:
             return None
-        image_name = os.path.splitext(image["name"])[0]  # filename without extension
+        image_name = os.path.splitext(image["name"])[0]
 
-        # collect roi's based on spatial downsampling
-        scales = self.spatial_downsample(events, threshold=areaThreshold)
-
-        origin = None
-        min_xys = {}
+        origin = pan_data["origin"]
+        source_list = []
 
         with tempfile.TemporaryDirectory() as tempdir:
-            for zoom, data in sorted(scales.items()):
+            for zoom, lvl_data in sorted(pan_data["zoom_patches"].items()):
                 # discard roi's with scale larger than limit
                 if zoom >= meta["levels"]:
                     continue
 
                 # assuming that the default scaling for the image is 20x (on zoom==meta["levels"]-1)
                 upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
-                effective_mag = meta.get("magnification", 20) / upscale_factor
+                magnification = meta.get("magnification", 20) / upscale_factor
 
-                min_xy = None
                 scale_image = large_image.new()
-
-                for region in data["accepted_regions"]:
-                    if origin is None:
-                        center_x = (region["left"] + region["right"]) // 2
-                        center_y = (region["top"] + region["bottom"]) // 2
-                        origin = np.array([center_x, center_y])
-
+                for roi in lvl_data["rois"]:
                     # get pixel data for roi at given magnification
                     nparray, mime = ImageItem().getRegion(
                         image,
-                        region=region,
-                        scale={"magnification": effective_mag},
+                        region={
+                            "left": roi["left"] + origin[0],
+                            "top": roi["top"] + origin[1],
+                            "right": roi["left"] + roi["width"] + origin[0],
+                            "bottom": roi["top"] + roi["height"] + origin[1],
+                        },
+                        scale={"magnification": magnification},
                         format=large_image.constants.TILE_FORMAT_NUMPY,
                     )
 
-                    region = np.array([region["left"], region["top"]])
-                    translated = region - origin
+                    scaled_x = (roi["left"] - lvl_data["left"]) // upscale_factor
+                    scaled_y = (roi["top"] - lvl_data["top"]) // upscale_factor
+                    scale_image.addTile(nparray, x=scaled_x, y=scaled_y)
 
-                    # track the bounds of the scale_image w.r.t. the origin
-                    if min_xy is None:
-                        min_xy = translated
-                    min_xy = np.min([min_xy, translated], axis=0)
-
-                    # transform to scale_image coordinates via the upscale_factor
-                    translated //= upscale_factor
-                    scale_image.addTile(nparray, x=translated[0], y=translated[1])
-
-                min_xys[zoom] = min_xy
-
+                # write the scale_image to disk
                 file_name = f"zoom_{zoom}_{image_name}.tiff"
                 file_path = os.path.join(tempdir, file_name)
                 scale_image.write(file_path, lossy=False)
@@ -307,31 +403,24 @@ class AnnotationTrackerResource(Resource):
                         user=user,
                     )
 
-            # get the minimum x & y across all scales
-            global_min_xy = np.min(np.array(list(min_xys.values())), axis=0)
-
-            source_list = []
-            for zoom in sorted(min_xys.keys()):
-                upscale_factor = 2 ** (meta["levels"] - 1 - zoom)
-                position = min_xys[zoom] - global_min_xy
-
+                # log the source metadata for multisource output
                 source_list.append(
                     {
-                        "path": f"./zoom_{zoom}_{image_name}.tiff",
+                        "path": f"./{file_name}",
                         "z": 0,
                         "position": {
-                            "x": int(position[0]),
-                            "y": int(position[1]),
+                            "x": int(lvl_data["left"] - pan_data["left"]),
+                            "y": int(lvl_data["top"] - pan_data["top"]),
                             "scale": upscale_factor,
                         },
-                        'params': {'style': {'bands': [
-                            {'palette': '#f00', 'band': 1},
-                            {'palette': '#0f0', 'band': 2},
-                            {'palette': '#00f', 'band': 3},
+                        "params": {"style": {"bands": [
+                            {"palette": "#f00", "band": 1},
+                            {"palette": "#0f0", "band": 2},
+                            {"palette": "#00f", "band": 3},
                             {
-                                'palette': ['#fff0', '#ffff'],
-                                'band': 4,
-                                'composite': 'multiply'
+                                "palette": ["#fff0", "#ffff"],
+                                "band": 4,
+                                "composite": "multiply"
                             },
                         ]}}
                     }
@@ -341,7 +430,7 @@ class AnnotationTrackerResource(Resource):
             file_path = os.path.join(tempdir, file_name)
 
             with open(file_path, "w") as yml_file:
-                yml_file.write(f'---\n{yaml.dump({"sources": source_list})}')
+                yml_file.write(f"---\n{yaml.dump({"sources": source_list})}")
 
             with open(file_path, "rb") as yml_file:
                 return Upload().uploadFromFile(
@@ -387,7 +476,37 @@ class AnnotationTrackerResource(Resource):
         .errorResponse()
     )
     def pan_history_json(
-        self, imageId, startTime, endTime, zoomPrecision, areaThreshold, limit, offset, sort
+        self,
+        imageId,
+        startTime,
+        endTime,
+        zoomPrecision,
+        areaThreshold,
+        limit,
+        offset,
+        sort,
     ):
-        events = self.activity_rois(imageId, startTime, endTime, zoomPrecision, limit, offset, sort)
-        return self.spatial_downsample(events, threshold=areaThreshold)
+        panned_area = self.extract_rois(
+            imageId,
+            startTime,
+            endTime,
+            zoomPrecision,
+            areaThreshold,
+            limit,
+            offset,
+            sort,
+        )
+        if not panned_area:
+            return None
+
+        # remove numpy array metadata from the response
+        zoom_patches = panned_area["zoom_patches"]
+        for zoom in zoom_patches.keys():
+            del zoom_patches[zoom]["min_xy"]
+            del zoom_patches[zoom]["max_xy"]
+
+        # convert numpy array to dict
+        origin = panned_area["origin"]
+        panned_area["origin"] = {"x": int(origin[0]), "y": int(origin[1])}
+
+        return panned_area

@@ -1,6 +1,7 @@
 # Python files.
 __pycache__
 *.egg-info
+.tox
 
 # NPM files.
 node_modules

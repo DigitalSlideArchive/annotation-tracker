@@ -430,7 +430,7 @@ class AnnotationTrackerResource(Resource):
             file_path = os.path.join(tempdir, file_name)
 
             with open(file_path, "w") as yml_file:
-                yml_file.write(f"---\n{yaml.dump({"sources": source_list})}")
+                yml_file.write(f"---\n{yaml.dump({'sources': source_list})}")
 
             with open(file_path, "rb") as yml_file:
                 return Upload().uploadFromFile(

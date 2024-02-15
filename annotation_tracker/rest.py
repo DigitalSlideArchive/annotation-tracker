@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 
 import large_image
 import numpy as np
@@ -353,7 +354,10 @@ class AnnotationTrackerResource(Resource):
         meta = ImageItem().getMetadata(image)
         if not meta or "sizeX" not in meta:
             return None
+
+        # for output file names
         image_name = os.path.splitext(image["name"])[0]
+        now = time.strftime("%Y%m%d-%H%M%S")
 
         origin = pan_data["origin"]
         source_list = []
@@ -388,7 +392,7 @@ class AnnotationTrackerResource(Resource):
                     scale_image.addTile(nparray, x=scaled_x, y=scaled_y)
 
                 # write the scale_image to disk
-                file_name = f"zoom_{zoom}_{image_name}.tiff"
+                file_name = f"zoom_{zoom}_{image_name}_{now}.tiff"
                 file_path = os.path.join(tempdir, file_name)
                 scale_image.write(file_path, lossy=False)
 
@@ -426,7 +430,7 @@ class AnnotationTrackerResource(Resource):
                     }
                 )
 
-            file_name = f"composite_{image_name}.yml"
+            file_name = f"composite_{image_name}_{now}.yml"
             file_path = os.path.join(tempdir, file_name)
 
             with open(file_path, "w") as yml_file:
